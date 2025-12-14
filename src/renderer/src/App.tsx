@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import GalaxyCanvas from './components/GalaxyCanvas'
+import type { BrainFileRow, SearchResult } from '../../shared/types'
+import { createLogger } from '../../shared/logger'
 
 type DropState = 'idle' | 'hover' | 'uploading' | 'success' | 'error'
 
@@ -20,41 +22,32 @@ const formatTimestamp = (timestamp: number): string =>
 
 type FileWithPath = File & { path?: string }
 
-type BrainFileRow = {
-  id: string
-  path: string
-  relativePath: string
-  type: string
-  mimeType: string | null
-  sizeBytes: number | null
-  createdAt: number
-  modifiedAt: number
-  lastIndexedAt: number | null
-  indexedStatus: string | null
-  chunkCount: number
-}
-
-type SearchResult = {
-  fileId: string
-  fileName: string
-  text: string
-  score: number
-  chunkIndex: number
-  isIndexed: boolean
-}
+const log = createLogger('renderer/dnd')
 
 const extractFilePaths = (dataTransfer: DataTransfer): string[] => {
+  log.info('extractFilePaths start', {
+    dataTransferTypes: Array.from(dataTransfer.types ?? []),
+    fileCount: dataTransfer.files?.length ?? 0,
+    files: Array.from(dataTransfer.files ?? []).map((file) => ({
+      name: file.name,
+      size: file.size,
+      type: file.type
+    }))
+  })
+
   const fromFileList = Array.from(dataTransfer.files)
     .map((file) => {
       try {
         return window.api.getFilePath(file)
-      } catch {
+      } catch (error) {
+        log.warn('getFilePath failed; falling back to File.path', { error, fileName: file.name })
         return (file as FileWithPath).path
       }
     })
     .filter((path): path is string => Boolean(path && path.trim()))
 
   if (fromFileList.length > 0) {
+    log.info('extractFilePaths result from FileList', { paths: fromFileList })
     return fromFileList
   }
 
@@ -116,7 +109,9 @@ const extractFilePaths = (dataTransfer: DataTransfer): string[] => {
   }
 
   const fallbackPaths = [...hydrateFromUriList(), ...hydrateFromPlainText()]
-  return Array.from(new Set(fallbackPaths))
+  const deduped = Array.from(new Set(fallbackPaths))
+  log.info('extractFilePaths result from fallbacks', { fallbackPaths, deduped })
+  return deduped
 }
 
 const formatBytes = (bytes: number | null | undefined): string => {
@@ -210,9 +205,16 @@ function App(): React.JSX.Element {
   const handleDrop = useCallback(async (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault()
     dragDepth.current = 0
+    const requestId = globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `req-${Date.now()}`
+    log.info('drop received', {
+      requestId,
+      dataTransferTypes: Array.from(event.dataTransfer.types ?? []),
+      fileCount: event.dataTransfer.files?.length ?? 0
+    })
     const filePaths = extractFilePaths(event.dataTransfer)
 
     if (!filePaths.length) {
+      log.warn('drop had zero extracted paths', { requestId })
       setDropState('error')
       setStatusMessage("Electron didn't see anything. Tough crowd.")
       return
@@ -222,7 +224,10 @@ function App(): React.JSX.Element {
     setStatusMessage('Pretending to work on it...')
 
     try {
-      const response = await window.api.importFiles(filePaths)
+      log.info('calling api.importFiles', { requestId, pathsCount: filePaths.length, paths: filePaths })
+      const startedAt = Date.now()
+      const response = await window.api.importFiles({ requestId, paths: filePaths, source: 'drag-drop' })
+      log.info('api.importFiles returned', { requestId, durationMs: Date.now() - startedAt, response })
 
       if (!response.success || !response.files) {
         throw new Error(response.error ?? 'Unknown import failure.')
@@ -233,6 +238,7 @@ function App(): React.JSX.Element {
       setDropState('success')
       setStatusMessage(`Dropped ${files.length} thing${files.length === 1 ? '' : 's'} at ${formatTimestamp(timestamp)}.`)
     } catch (error) {
+      log.error('api.importFiles threw', { requestId, error })
       setDropState('error')
       setStatusMessage(error instanceof Error ? error.message : 'Something weird happened.')
     }

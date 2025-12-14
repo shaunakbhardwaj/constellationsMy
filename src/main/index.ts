@@ -1,46 +1,37 @@
 import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { promises as fs } from 'fs'
-import { join, parse, relative, normalize, resolve, isAbsolute } from 'path'
+import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { initDatabases, closeDatabases, getSQLite } from './db'
-import { processFile } from './ingestion'
+import { initDatabases, closeDatabases } from './db'
 import { getBrainDirectory } from './brain-path'
 import { scanBrainDirectory } from './scanner'
 import { initWatcher, closeWatcher } from './watcher'
 import { disposeIngestionWorker } from './workers/worker-manager'
-import { searchBrain } from './search'
-import type { SearchResult } from './search'
+import { registerAllHandlers } from './ipc'
+import { createLogger } from '../shared/logger'
 
 // Security: Allowed protocols for external URLs
 const ALLOWED_PROTOCOLS = ['https:', 'http:']
 
-// Security: Maximum rename attempts to prevent infinite loops
-const MAX_RENAME_ATTEMPTS = 1000
-
 // Flag to prevent multiple cleanup attempts
 let isQuitting = false
 
-type FileTransferPayload = {
-  source: string
-  destination: string
-}
-
-type BrainFileRow = {
-  id: string
-  path: string
-  relativePath: string
-  type: string
-  mimeType: string | null
-  sizeBytes: number | null
-  createdAt: number
-  modifiedAt: number
-  lastIndexedAt: number | null
-  indexedStatus: string | null
-  chunkCount: number
-}
+const log = createLogger('main')
 
 function createWindow(): void {
+  const preloadPath = join(__dirname, '../preload/index.js')
+  log.info('createWindow configuration', {
+    __dirname,
+    preloadPath,
+    isDev: is.dev,
+    rendererUrl: process.env['ELECTRON_RENDERER_URL']
+  })
+  void fs
+    .access(preloadPath)
+    .then(() => log.info('preload script exists', { preloadPath }))
+    .catch((error) => log.error('preload script missing/unreadable', { preloadPath, error }))
+
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 900,
@@ -49,8 +40,8 @@ function createWindow(): void {
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: true,
+      preload: preloadPath,
+      sandbox: false,
       contextIsolation: true,
       nodeIntegration: false
     }
@@ -67,10 +58,10 @@ function createWindow(): void {
       if (ALLOWED_PROTOCOLS.includes(url.protocol)) {
         shell.openExternal(details.url)
       } else {
-        console.warn(`[Security] Blocked external URL with protocol: ${url.protocol}`)
+        log.warn('blocked external URL with disallowed protocol', { protocol: url.protocol })
       }
     } catch {
-      console.warn('[Security] Invalid URL blocked:', details.url)
+      log.warn('invalid URL blocked', { url: details.url })
     }
     return { action: 'deny' }
   })
@@ -82,6 +73,21 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  if (is.dev) {
+    mainWindow.webContents.once('did-finish-load', () => {
+      void mainWindow.webContents
+        .executeJavaScript(
+          `({ apiType: typeof window.api, electronType: typeof window.electron, href: location.href })`
+        )
+        .then((result) => log.info('renderer globals check', result))
+        .catch((error) => log.error('renderer globals check failed', { error }))
+    })
+  }
+
+  mainWindow.webContents.on('preload-error', (_event, preloadPathArg, error) => {
+    log.error('preload-error event', { preloadPathArg, error })
+  })
 }
 
 // This method will be called when Electron has finished
@@ -96,11 +102,12 @@ app.whenReady().then(async () => {
     // Worker initializes lazily on first use, no explicit init needed
 
     const brainDirectory = getBrainDirectory()
+    log.info('startup: ensured brain directory + scan/watch', { brainDirectory })
     await fs.mkdir(brainDirectory, { recursive: true })
     await scanBrainDirectory(brainDirectory)
     initWatcher(brainDirectory)
   } catch (error) {
-    console.error('[App] Fatal initialization error:', error)
+    log.error('startup: fatal initialization error', { error })
     dialog.showErrorBox(
       'Startup Error',
       `Failed to initialize: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -108,8 +115,6 @@ app.whenReady().then(async () => {
     app.quit()
     return
   }
-
-  const brainDirectory = getBrainDirectory()
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -119,127 +124,10 @@ app.whenReady().then(async () => {
   })
 
   // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
+  ipcMain.on('ping', () => log.debug('ping received'))
 
-  ipcMain.handle('import-files', async (_, filePaths: string[]) => {
-    if (!Array.isArray(filePaths) || filePaths.length === 0) {
-      return { success: false, error: 'No files were provided.' }
-    }
-
-    // Security: Validate all paths before processing
-    const allowedSourceDirs = [
-      app.getPath('home'),
-      app.getPath('documents'),
-      app.getPath('downloads'),
-      app.getPath('desktop')
-    ]
-
-    for (const rawPath of filePaths) {
-      if (typeof rawPath !== 'string' || rawPath.trim().length === 0) continue
-      if (!isPathSafe(rawPath, allowedSourceDirs)) {
-        return { success: false, error: `Access denied: ${rawPath}` }
-      }
-    }
-
-    try {
-      await fs.mkdir(brainDirectory, { recursive: true })
-      const transfers: FileTransferPayload[] = []
-
-      for (const rawPath of filePaths) {
-        if (typeof rawPath !== 'string' || rawPath.trim().length === 0) continue
-        const baseName = parse(rawPath).base
-        if (!baseName) continue
-        const destination = await ensureUniqueDestination(brainDirectory, baseName)
-        await copyEntry(rawPath, destination)
-        const relPath = relative(brainDirectory, destination)
-        await processFile(destination, relPath)
-        transfers.push({ source: rawPath, destination })
-      }
-
-      if (transfers.length === 0) {
-        return { success: false, error: 'No valid files could be processed.' }
-      }
-
-      return { success: true, files: transfers }
-    } catch (error) {
-      console.error('Failed to import files', error)
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown file import error'
-      }
-    }
-  })
-
-  ipcMain.handle('fetch-brain-data', () => {
-    try {
-      const sqlite = getSQLite()
-      const statement = sqlite.prepare<[], BrainFileRow>(`
-        SELECT
-          f.id AS id,
-          f.path AS path,
-          f.relative_path AS relativePath,
-          f.type AS type,
-          f.mime_type AS mimeType,
-          f.size_bytes AS sizeBytes,
-          f.created_at AS createdAt,
-          f.modified_at AS modifiedAt,
-          f.last_indexed_at AS lastIndexedAt,
-          f.indexed_status AS indexedStatus,
-          COUNT(c.id) AS chunkCount
-        FROM files f
-        LEFT JOIN chunks c ON c.file_id = f.id
-        GROUP BY f.id
-        ORDER BY f.created_at DESC
-        LIMIT 500
-      `)
-
-      const files = statement.all()
-      return { success: true, files }
-    } catch (error) {
-      console.error('Failed to fetch brain data', error)
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown database error'
-      }
-    }
-  })
-
-  ipcMain.handle('search-brain', async (_, query: string) => {
-    if (!query || query.trim().length === 0) {
-      return { success: false, error: 'Query cannot be empty' }
-    }
-
-    try {
-      const rawResults = await searchBrain(query.trim(), 10)
-
-      const db = getSQLite()
-      const enrichedResults = rawResults.map((result: SearchResult) => {
-        const fileInfo = db
-          .prepare(
-            `
-        SELECT relative_path, indexed_status 
-        FROM files 
-        WHERE id = ?
-      `
-          )
-          .get(result.fileId) as { relative_path: string; indexed_status: string } | undefined
-
-        return {
-          ...result,
-          fileName: fileInfo?.relative_path ?? 'Unknown',
-          isIndexed: fileInfo?.indexed_status === 'indexed'
-        }
-      })
-
-      return { success: true, results: enrichedResults }
-    } catch (error) {
-      console.error('[IPC] Search failed:', error)
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Search failed'
-      }
-    }
-  })
+  // Register all IPC handlers from modular handler files
+  registerAllHandlers(ipcMain)
 
   createWindow()
 
@@ -264,65 +152,8 @@ app.on('before-quit', (event) => {
     isQuitting = true
     event.preventDefault()
 
-    Promise.all([
-      closeWatcher(),
-      disposeIngestionWorker(),
-      closeDatabases()
-    ])
-      .catch((error) => console.error('[App] Cleanup error:', error))
+    Promise.all([closeWatcher(), disposeIngestionWorker(), closeDatabases()])
+      .catch((error) => log.error('cleanup error during quit', { error }))
       .finally(() => app.exit(0))
   }
 })
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.
-
-async function copyEntry(source: string, destination: string): Promise<void> {
-  const stats = await fs.stat(source)
-
-  if (stats.isDirectory()) {
-    await fs.cp(source, destination, { recursive: true })
-  } else {
-    await fs.copyFile(source, destination)
-  }
-}
-
-async function ensureUniqueDestination(directory: string, baseName: string): Promise<string> {
-  const parsed = parse(baseName)
-
-  for (let attempt = 0; attempt < MAX_RENAME_ATTEMPTS; attempt++) {
-    const suffix = attempt === 0 ? '' : `-${attempt}`
-    const candidateName = `${parsed.name}${suffix}${parsed.ext}`
-    const candidatePath = join(directory, candidateName)
-
-    try {
-      await fs.access(candidatePath)
-      // File exists, continue to next attempt
-    } catch {
-      return candidatePath
-    }
-  }
-
-  throw new Error(`Could not find unique name for ${baseName} after ${MAX_RENAME_ATTEMPTS} attempts`)
-}
-
-/**
- * Security: Validate that a path is within allowed directories
- * Prevents path traversal attacks and access to sensitive files
- */
-function isPathSafe(filePath: string, allowedDirs: string[]): boolean {
-  if (!isAbsolute(filePath)) {
-    return false
-  }
-
-  const normalized = normalize(resolve(filePath))
-
-  for (const allowed of allowedDirs) {
-    const normalizedAllowed = normalize(resolve(allowed))
-    if (normalized.startsWith(normalizedAllowed)) {
-      return true
-    }
-  }
-
-  return false
-}

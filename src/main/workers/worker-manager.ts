@@ -2,9 +2,16 @@
  * Manages the ingestion worker thread lifecycle and communication.
  * Provides a simple API for embedding generation that offloads work to a worker.
  */
-import { Worker } from 'worker_threads'
-import { join } from 'path'
+import { Worker } from 'node:worker_threads'
 import { v4 as uuidv4 } from 'uuid'
+import { createLogger } from '../../shared/logger'
+import { generateEmbedding, initEmbeddingModel } from '../ai/embeddings'
+
+// electron-vite automatically bundles this worker with ?modulePath suffix
+// @see https://electron-vite.org/guide/dev.html#worker-threads
+import workerPath from './ingestion.worker?modulePath'
+
+const log = createLogger('main/worker-manager')
 
 type WorkerResponse =
   | { type: 'init-complete' }
@@ -22,20 +29,32 @@ let worker: Worker | null = null
 let isInitialized = false
 let initPromise: Promise<void> | null = null
 const pendingRequests = new Map<string, PendingRequest>()
+let useWorker = true
+let lastFailure: unknown = null
 
-function getWorkerPath(): string {
-  // In production, the worker will be in the same directory as the main process
-  // In development with electron-vite, it will be in the out directory
-  return join(__dirname, 'workers', 'ingestion.worker.js')
+async function generateEmbeddingsInline(chunks: string[]): Promise<number[][]> {
+  log.info('inline embedding fallback start', { chunks: chunks.length, lastFailure })
+  await initEmbeddingModel()
+  const vectors: number[][] = []
+  for (const chunk of chunks) {
+    vectors.push(await generateEmbedding(chunk))
+  }
+  log.info('inline embedding fallback done', { chunks: chunks.length })
+  return vectors
 }
 
 async function ensureWorker(): Promise<void> {
+  if (!useWorker) return
   if (worker && isInitialized) return
   if (initPromise) return initPromise
 
-  initPromise = new Promise((resolve, reject) => {
+  // workerPath is provided by electron-vite's ?modulePath import
+  // No need to check if file exists - bundler ensures it's present
+
+  initPromise = new Promise((resolve) => {
     try {
-      worker = new Worker(getWorkerPath())
+      worker = new Worker(workerPath)
+      log.info('worker thread created', { workerPath })
 
       worker.on('message', (message: WorkerResponse) => {
         switch (message.type) {
@@ -44,9 +63,12 @@ async function ensureWorker(): Promise<void> {
             resolve()
             break
 
-          case 'init-error':
-            reject(new Error(message.error))
+          case 'init-error': {
+            lastFailure = new Error(message.error)
+            useWorker = false
+            resolve()
             break
+          }
 
           case 'embeddings': {
             const pending = pendingRequests.get(message.id)
@@ -75,11 +97,14 @@ async function ensureWorker(): Promise<void> {
 
       worker.on('error', (error) => {
         console.error('[WorkerManager] Worker error:', error)
+        lastFailure = error
+        useWorker = false
         // Reject all pending requests
         for (const [id, pending] of pendingRequests) {
           pending.reject(error)
           pendingRequests.delete(id)
         }
+        initPromise = null
       })
 
       worker.on('exit', (code) => {
@@ -89,11 +114,15 @@ async function ensureWorker(): Promise<void> {
         worker = null
         isInitialized = false
         initPromise = null
+        useWorker = false
       })
 
       worker.postMessage({ type: 'init' })
     } catch (error) {
-      reject(error)
+      lastFailure = error
+      useWorker = false
+      initPromise = null
+      resolve()
     }
   })
 
@@ -107,11 +136,26 @@ async function ensureWorker(): Promise<void> {
 export async function generateEmbeddingsInWorker(chunks: string[]): Promise<number[][]> {
   await ensureWorker()
 
+  if (!useWorker || !worker || !isInitialized) {
+    return generateEmbeddingsInline(chunks)
+  }
+
   const id = uuidv4()
 
-  return new Promise((resolve, reject) => {
+  return new Promise<number[][]>((resolve, reject) => {
     pendingRequests.set(id, { resolve, reject })
-    worker!.postMessage({ type: 'generate', id, chunks })
+    try {
+      worker!.postMessage({ type: 'generate', id, chunks })
+    } catch (error) {
+      pendingRequests.delete(id)
+      lastFailure = error
+      useWorker = false
+      generateEmbeddingsInline(chunks).then(resolve).catch(reject)
+    }
+  }).catch((error) => {
+    lastFailure = error
+    useWorker = false
+    return generateEmbeddingsInline(chunks)
   })
 }
 

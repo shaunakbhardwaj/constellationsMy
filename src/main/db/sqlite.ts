@@ -1,41 +1,11 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
-import { fileURLToPath } from 'node:url'
 import Database from 'better-sqlite3'
-import schemaFallback from './schema.sql?raw'
 import { getBrainDatabasePath } from '../brain-path'
+import { runMigrations, getCurrentSchemaVersion } from './migrate'
+import { createLogger } from '../../shared/logger'
 
 let db: Database.Database | null = null
-let schemaSQL: string | null = null
 
-/**
- * Load schema SQL lazily - uses async file read if possible,
- * falls back to sync read or bundled string
- */
-async function loadSchemaSQL(): Promise<string> {
-  if (schemaSQL) return schemaSQL
-
-  try {
-    const schemaUrl = new URL('./schema.sql', import.meta.url)
-    const schemaPath = fileURLToPath(schemaUrl)
-    if (existsSync(schemaPath)) {
-      // Try async read first
-      try {
-        schemaSQL = await readFile(schemaPath, 'utf-8')
-        return schemaSQL
-      } catch {
-        // Fall back to sync read if async fails
-        schemaSQL = readFileSync(schemaPath, 'utf-8')
-        return schemaSQL
-      }
-    }
-  } catch (error) {
-    console.warn('[SQLite] Failed to read schema file directly, falling back to bundled string.', error)
-  }
-
-  schemaSQL = schemaFallback
-  return schemaSQL
-}
+const log = createLogger('main/db/sqlite')
 
 export async function initSQLite(): Promise<Database.Database> {
   if (db) return db
@@ -43,12 +13,22 @@ export async function initSQLite(): Promise<Database.Database> {
   const dbPath = getBrainDatabasePath()
   db = new Database(dbPath)
 
+  // Enable WAL mode for better concurrent access
   db.pragma('journal_mode = WAL')
+  
+  // Enable foreign keys
+  db.pragma('foreign_keys = ON')
 
-  const schema = await loadSchemaSQL()
-  db.exec(schema)
+  // Run any pending migrations
+  const migrationsApplied = runMigrations(db)
+  const currentVersion = getCurrentSchemaVersion(db)
 
-  console.log('[SQLite] Database initialized at:', dbPath)
+  log.info('Database initialized', { 
+    path: dbPath, 
+    schemaVersion: currentVersion,
+    migrationsApplied 
+  })
+  
   return db
 }
 
@@ -63,6 +43,6 @@ export function closeSQLite(): void {
   if (db) {
     db.close()
     db = null
-    console.log('[SQLite] Database closed')
+    log.info('Database closed')
   }
 }

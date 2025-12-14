@@ -2,14 +2,18 @@ import { readdir, stat } from 'fs/promises'
 import { join, relative } from 'path'
 import { getSQLite } from './db'
 import { processFile } from './ingestion'
+import { createLogger } from '../shared/logger'
 
 type FileInDB = {
   path: string
   modifiedAt: number
 }
 
+const log = createLogger('main/scanner')
+
 export async function scanBrainDirectory(brainDir: string): Promise<void> {
-  console.log('[Scanner] Starting initial scan...')
+  const startedAt = Date.now()
+  log.info('scanBrainDirectory start', { brainDir })
 
   const db = getSQLite()
 
@@ -30,11 +34,11 @@ export async function scanBrainDirectory(brainDir: string): Promise<void> {
     const dbModified = trackedMap.get(diskPath)
 
     if (!dbModified) {
-      console.log(`[Scanner] New file: ${relativePath}`)
+      log.info('scan detected new file', { relativePath, diskPath })
       await processFile(diskPath, relativePath)
       newFiles++
     } else if (diskModified > dbModified) {
-      console.log(`[Scanner] Modified file: ${relativePath}`)
+      log.info('scan detected modified file', { relativePath, diskPath })
       await processFile(diskPath, relativePath)
       updatedFiles++
     }
@@ -45,18 +49,24 @@ export async function scanBrainDirectory(brainDir: string): Promise<void> {
   // Remaining entries exist in DB but not on disk
   for (const [deletedPath] of trackedMap) {
     const relativePath = relative(brainDir, deletedPath)
-    console.log(`[Scanner] Deleted file: ${relativePath}`)
+    log.info('scan detected deleted file', { relativePath, deletedPath })
     db.prepare('DELETE FROM files WHERE path = ?').run(deletedPath)
   }
 
-  console.log(`[Scanner] Scan complete. New: ${newFiles}, Updated: ${updatedFiles}, Deleted: ${trackedMap.size}`)
+  log.info('scanBrainDirectory done', {
+    brainDir,
+    newFiles,
+    updatedFiles,
+    deletedFiles: trackedMap.size,
+    durationMs: Date.now() - startedAt
+  })
 }
 
 async function scanDirectory(dir: string, depth = 0): Promise<string[]> {
   const MAX_SCAN_DEPTH = 20
 
   if (depth > MAX_SCAN_DEPTH) {
-    console.warn(`[Scanner] Max depth (${MAX_SCAN_DEPTH}) reached at: ${dir}`)
+    log.warn('scanDirectory max depth reached', { MAX_SCAN_DEPTH, dir })
     return []
   }
 
@@ -88,7 +98,7 @@ async function scanDirectory(dir: string, depth = 0): Promise<string[]> {
       }
     }
   } catch (err) {
-    console.error(`[Scanner] Error scanning ${dir}:`, err)
+    log.error('scanDirectory error', { dir, err })
   }
 
   return results
