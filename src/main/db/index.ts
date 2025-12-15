@@ -1,12 +1,15 @@
 import { initSQLite, getSQLite, closeSQLite } from './sqlite'
 import { initLanceDB, getLanceDB, closeLanceDB } from './lance'
+import { createLogger } from '../../shared/logger'
 import type Database from 'better-sqlite3'
 import type * as lancedb from '@lancedb/lancedb'
+
+const log = createLogger('main/db')
 
 export async function initDatabases(): Promise<void> {
   await initSQLite()
   await initLanceDB()
-  console.log('[DB] All databases initialized')
+  log.info('All databases initialized')
 }
 
 export function getDB(): { sqlite: Database.Database; lance: lancedb.Connection } {
@@ -19,8 +22,9 @@ export function getDB(): { sqlite: Database.Database; lance: lancedb.Connection 
 export async function closeDatabases(): Promise<void> {
   closeSQLite()
   await closeLanceDB()
-  console.log('[DB] All databases closed')
+  log.info('All databases closed')
 }
 
 export * from './sqlite'
 export * from './lance'
+export { runMigrations, getCurrentSchemaVersion, hasPendingMigrations } from './migrate'

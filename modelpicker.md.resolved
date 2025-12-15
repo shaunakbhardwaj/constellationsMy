@@ -1,0 +1,466 @@
+# Implementation Plan: Embeddings, File Deletion & Secure API Keys
+
+## Overview
+
+This plan implements three features across **4 phases**:
+
+| Phase | Focus | Estimated Effort |
+|-------|-------|------------------|
+| 1 | Secure API Key Storage (OpenRouter + Gemini) | Backend + UI |
+| 2 | Embedding Model Management | Backend + UI |
+| 3 | File Deletion with Full Cleanup | Backend + UI |
+| 4 | Testing & Polish | Verification |
+
+---
+
+## Model Catalog Structure
+
+> [!NOTE]
+> All model lists are stored in a dedicated `src/main/models/` folder for easy editing.
+
+```
+src/main/models/
+├── index.ts              # Re-exports all catalogs
+├── embedding.ts          # Embedding model catalog
+├── llm-openrouter.ts     # OpenRouter LLM models
+└── llm-gemini.ts         # Gemini LLM models
+```
+
+This structure allows you to:
+- Add/remove models by editing a single file
+- Keep embedding and LLM models separate
+- Easily extend with new providers
+
+---
+
+## Phase 1: Secure API Key Storage
+
+### Goal
+Store OpenRouter (primary) and Gemini (secondary) API keys securely using Electron's `safeStorage`. Keys persist across app restarts.
+
+---
+
+### Step 1.1: Create Secure Key Storage Module
+
+**File**: `src/main/config/secrets.ts` [NEW]
+
+```typescript
+// Functions to implement:
+- saveApiKey(provider: 'openrouter' | 'gemini', key: string): void
+- getApiKey(provider: 'openrouter' | 'gemini'): string | null
+- hasApiKey(provider: 'openrouter' | 'gemini'): boolean
+- clearApiKey(provider: 'openrouter' | 'gemini'): void
+- loadAllApiKeys(): void  // Called on app startup
+```
+
+**Implementation Details**:
+- Use `safeStorage.encryptString()` and `safeStorage.decryptString()`
+- Store encrypted keys in a JSON file at `~/.constellations/secrets.enc`
+- If `safeStorage` is unavailable (rare), fall back to in-memory only with a warning
+
+---
+
+### Step 1.2: Create LLM Model Catalogs
+
+**File**: `src/main/models/llm-openrouter.ts` [NEW]
+
+```typescript
+export interface LLMModelInfo {
+  id: string           // e.g., 'anthropic/claude-3-haiku'
+  name: string         // e.g., 'Claude 3 Haiku'
+  provider: string     // 'anthropic', 'openai', 'google', etc.
+  contextLength: number
+  description: string
+}
+
+export const OPENROUTER_MODELS: LLMModelInfo[] = [
+  {
+    id: 'anthropic/claude-3-haiku',
+    name: 'Claude 3 Haiku',
+    provider: 'anthropic',
+    contextLength: 200000,
+    description: 'Fast and affordable'
+  },
+  {
+    id: 'anthropic/claude-3.5-sonnet',
+    name: 'Claude 3.5 Sonnet',
+    provider: 'anthropic',
+    contextLength: 200000,
+    description: 'Best balance of speed and intelligence'
+  },
+  {
+    id: 'openai/gpt-4o-mini',
+    name: 'GPT-4o Mini',
+    provider: 'openai',
+    contextLength: 128000,
+    description: 'Fast and capable'
+  },
+  // Add more models as needed
+]
+```
+
+**File**: `src/main/models/llm-gemini.ts` [NEW]
+
+```typescript
+export const GEMINI_MODELS: LLMModelInfo[] = [
+  {
+    id: 'gemini-1.5-flash',
+    name: 'Gemini 1.5 Flash',
+    provider: 'google',
+    contextLength: 1000000,
+    description: 'Fast multimodal model'
+  },
+  {
+    id: 'gemini-1.5-pro',
+    name: 'Gemini 1.5 Pro',
+    provider: 'google',
+    contextLength: 2000000,
+    description: 'Most capable Gemini model'
+  },
+  // Add more models as needed
+]
+```
+
+---
+
+### Step 1.3: Update LLM IPC Handlers
+
+**File**: [src/main/ipc/handlers/llm.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/ipc/handlers/llm.ts) [MODIFY]
+
+| Handler | Change |
+|---------|--------|
+| `llm-set-api-key` | Add `provider` parameter, use new secrets module |
+| `llm-clear-api-key` | Add `provider` parameter |
+| `llm-get-config` | Return `hasOpenRouterKey` and `hasGeminiKey` separately |
+| `llm-get-models` | Return models from the appropriate catalog based on provider |
+| NEW: `llm-get-key-status` | Returns `{ openrouter: boolean, gemini: boolean }` |
+
+---
+
+### Step 1.4: Load Keys on App Startup
+
+**File**: [src/main/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/index.ts) [MODIFY]
+
+- Call `loadAllApiKeys()` from secrets module during `app.whenReady()`
+- If OpenRouter key exists, set it on the [OpenRouterClient](file:///Users/shaunakbhardwaj/Work/constellations/src/main/llm/openrouter.ts#20-181)
+
+---
+
+### Step 1.5: Update Settings UI
+
+**File**: [src/renderer/src/components/panels/SettingsPanel.tsx](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/components/panels/SettingsPanel.tsx) [MODIFY]
+
+**Changes**:
+1. **OpenRouter Section** (existing, but improve):
+   - Show status: "Configured ✓" or input field
+   - Save button validates key before storing
+   - Clear button to remove key
+
+2. **Gemini Section** (replace OpenAI):
+   - Same UI pattern as OpenRouter
+   - Label: "Gemini API Key"
+   - Help text: "Optional - for future AI features"
+
+---
+
+### Step 1.6: Update Preload & Types
+
+**File**: [src/preload/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/preload/index.ts) [MODIFY]
+- Update API calls to pass `provider` argument
+
+**File**: [src/shared/types.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/shared/types.ts) [MODIFY]
+- Add `ApiKeyProvider = 'openrouter' | 'gemini'`
+- Update [BrainAPI](file:///Users/shaunakbhardwaj/Work/constellations/src/shared/types.ts#108-144) interface with new method signatures
+
+---
+
+## Phase 2: Embedding Model Management
+
+### Goal
+Show available embedding models with download status. Allow users to download models and select which one to use.
+
+---
+
+### Step 2.1: Create Embedding Model Catalog
+
+**File**: `src/main/models/embedding.ts` [NEW]
+
+```typescript
+export interface EmbeddingModelInfo {
+  id: string           // e.g., 'Xenova/all-MiniLM-L6-v2'
+  name: string         // e.g., 'all-MiniLM-L6-v2'
+  provider: 'local'    // All embedding models are local
+  sizeBytes: number    // Approximate download size
+  dimensions: number   // Vector dimensions (384, 768, 1024)
+  description: string
+}
+
+export const EMBEDDING_MODELS: EmbeddingModelInfo[] = [
+  {
+    id: 'Xenova/all-MiniLM-L6-v2',
+    name: 'all-MiniLM-L6-v2',
+    provider: 'local',
+    sizeBytes: 23_000_000,  // ~23MB
+    dimensions: 384,
+    description: 'Fast, lightweight model. Good for most use cases.'
+  },
+  {
+    id: 'Xenova/bge-m3',
+    name: 'BGE-M3',
+    provider: 'local',
+    sizeBytes: 568_000_000,  // ~568MB
+    dimensions: 1024,
+    description: 'High-quality multilingual model. Best accuracy.'
+  },
+  {
+    id: 'nomic-ai/nomic-embed-text-v1',
+    name: 'Nomic Embed Text v1',
+    provider: 'local',
+    sizeBytes: 137_000_000,  // ~137MB
+    dimensions: 768,
+    description: 'Good balance of speed and quality.'
+  }
+  // Add more models by editing this file
+]
+```
+
+**File**: `src/main/models/index.ts` [NEW]
+
+```typescript
+// Re-export all model catalogs
+export * from './embedding'
+export * from './llm-openrouter'
+export * from './llm-gemini'
+```
+
+---
+
+### Step 2.2: Model Status Checker
+
+**File**: `src/main/ai/model-manager.ts` [NEW]
+
+```typescript
+// Functions to implement:
+
+/**
+ * Check if a model is downloaded by looking in Xenova cache
+ * Cache location: ~/.cache/huggingface/hub/models--{org}--{model}
+ */
+isModelDownloaded(modelId: string): boolean
+
+/**
+ * Get status of all models
+ */
+getModelStatuses(): { modelId: string, downloaded: boolean }[]
+
+/**
+ * Download a model by triggering the pipeline with progress tracking
+ * Emits progress events to renderer
+ */
+downloadModel(modelId: string, onProgress: (percent: number) => void): Promise<void>
+```
+
+**Implementation Notes**:
+- Xenova/transformers caches models in `~/.cache/huggingface/hub/`
+- Check for existence of `models--{org}--{model}/snapshots/` directory
+- For download, use `pipeline('feature-extraction', modelId)` which triggers download
+
+---
+
+### Step 2.3: Add IPC Handlers for Models
+
+**File**: [src/main/ipc/handlers/brain.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/ipc/handlers/brain.ts) [MODIFY]
+
+| Handler | Purpose |
+|---------|---------|
+| `get-embedding-models` | Returns catalog with download status |
+| `download-embedding-model` | Triggers download, sends progress events |
+| `set-active-embedding-model` | Updates config, restarts worker with new model |
+
+---
+
+### Step 2.4: Update Settings UI for Models
+
+**File**: [src/renderer/src/components/panels/SettingsPanel.tsx](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/components/panels/SettingsPanel.tsx) [MODIFY]
+
+**New UI Structure for Embedding Section**:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Embedding Models                                             │
+├─────────────────────────────────────────────────────────────┤
+│ ● all-MiniLM-L6-v2     [Active]   23 MB    ✓ Downloaded     │
+│ ○ BGE-M3                          568 MB   [Download]       │
+│ ○ Nomic Embed v1                  137 MB   [Download]       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**States**:
+- `Downloaded` → Show checkmark, can select as active
+- `Not Downloaded` → Show "Download" button
+- `Downloading` → Show progress bar (e.g., "Downloading... 45%")
+- [Active](file:///Users/shaunakbhardwaj/Work/constellations/src/main/agent/index.ts#334-340) → Show badge, radio button selected
+
+---
+
+### Step 2.5: Update Worker to Use Selected Model
+
+**File**: [src/main/workers/ingestion.worker.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/workers/ingestion.worker.ts) [MODIFY]
+
+- Accept model ID in [init](file:///Users/shaunakbhardwaj/Work/constellations/src/main/workers/ingestion.worker.ts#22-29) message
+- Load the specified model instead of hardcoded one
+
+**File**: [src/main/workers/worker-manager.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/workers/worker-manager.ts) [MODIFY]
+
+- Pass model ID from config when initializing worker
+
+---
+
+## Phase 3: File Deletion with Full Cleanup
+
+### Goal
+Allow users to delete files from the Files panel. Deletion removes:
+1. The file from disk (`~/Work/brain/...`)
+2. The record from SQLite `files` table
+3. All chunks from SQLite `chunks` table (via CASCADE)
+4. All vectors from LanceDB
+
+---
+
+### Step 3.1: Add Delete File Handler
+
+**File**: [src/main/ipc/handlers/files.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/ipc/handlers/files.ts) [MODIFY]
+
+```typescript
+ipcMain.handle('delete-file', async (_, fileId: string) => {
+  const db = getSQLite()
+  const lance = getLanceDB()
+  
+  // 1. Get file info from SQLite
+  const file = db.prepare('SELECT * FROM files WHERE id = ?').get(fileId)
+  if (!file) return { success: false, error: 'File not found' }
+  
+  // 2. Delete vectors from LanceDB
+  const table = await lance.openTable('documents')
+  await table.delete(`file_id = '${fileId}'`)
+  
+  // 3. Delete from SQLite (CASCADE deletes chunks)
+  db.prepare('DELETE FROM files WHERE id = ?').run(fileId)
+  
+  // 4. Delete file from disk
+  await fs.unlink(file.path)
+  
+  return { success: true }
+})
+```
+
+---
+
+### Step 3.2: Update Files Panel UI
+
+**File**: [src/renderer/src/components/panels/FilesPanel.tsx](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/components/panels/FilesPanel.tsx) [MODIFY]
+
+**Changes**:
+1. Add trash icon button to each file row
+2. On click, show confirmation dialog:
+   ```
+   ┌─────────────────────────────────────────────┐
+   │  Delete "document.pdf"?                      │
+   │                                              │
+   │  This will permanently remove the file and   │
+   │  all its indexed data from the brain.        │
+   │                                              │
+   │            [Cancel]  [Delete]                │
+   └─────────────────────────────────────────────┘
+   ```
+3. On confirm, call `window.api.deleteFile(fileId)`
+4. Refresh file list after deletion
+
+---
+
+### Step 3.3: Add TrashIcon Component
+
+**File**: [src/renderer/src/components/Icons.tsx](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/components/Icons.tsx) [MODIFY]
+
+Add `TrashIcon` SVG component
+
+---
+
+### Step 3.4: Update Preload & Types
+
+**File**: [src/preload/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/preload/index.ts) [MODIFY]
+- Add `deleteFile(fileId: string)` method
+
+**File**: [src/shared/types.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/shared/types.ts) [MODIFY]
+- Add to [BrainAPI](file:///Users/shaunakbhardwaj/Work/constellations/src/shared/types.ts#108-144): `deleteFile: (fileId: string) => Promise<{ success: boolean; error?: string }>`
+
+---
+
+## Phase 4: Testing & Polish
+
+### Step 4.1: Manual Testing Checklist
+
+#### API Keys
+- [ ] Enter OpenRouter key → Shows "Configured ✓"
+- [ ] Restart app → Key persists, LLM works
+- [ ] Clear OpenRouter key → Shows input field again
+- [ ] Enter Gemini key → Saves successfully
+- [ ] Invalid key → Shows error message
+
+#### Embedding Models
+- [ ] Settings shows all models from `embedding.ts`
+- [ ] Click "Download" on BGE-M3 → Progress bar appears
+- [ ] Download completes → Shows ✓
+- [ ] Select different model → Config updates
+- [ ] New files indexed with selected model
+
+#### File Deletion
+- [ ] Trash icon appears on each file
+- [ ] Click trash → Confirmation dialog appears
+- [ ] Cancel → Nothing happens
+- [ ] Confirm → File disappears from list
+- [ ] Verify file gone from ~/Work/brain
+- [ ] Search for deleted file content → No results
+
+---
+
+### Step 4.2: Edge Cases to Handle
+
+1. **Delete while indexing**: Prevent deletion of files currently being processed
+2. **Download interruption**: Handle partial downloads gracefully
+3. **Model switch with pending files**: Queue re-indexing with new model
+4. **Network failure during download**: Show error, allow retry
+
+---
+
+## File Change Summary
+
+| File | Action | Phase |
+|------|--------|-------|
+| `src/main/config/secrets.ts` | NEW | 1 |
+| `src/main/models/index.ts` | NEW | 1, 2 |
+| `src/main/models/embedding.ts` | NEW | 2 |
+| `src/main/models/llm-openrouter.ts` | NEW | 1 |
+| `src/main/models/llm-gemini.ts` | NEW | 1 |
+| `src/main/ai/model-manager.ts` | NEW | 2 |
+| [src/main/ipc/handlers/llm.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/ipc/handlers/llm.ts) | MODIFY | 1 |
+| [src/main/ipc/handlers/brain.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/ipc/handlers/brain.ts) | MODIFY | 2 |
+| [src/main/ipc/handlers/files.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/ipc/handlers/files.ts) | MODIFY | 3 |
+| [src/main/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/index.ts) | MODIFY | 1 |
+| [src/main/workers/ingestion.worker.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/workers/ingestion.worker.ts) | MODIFY | 2 |
+| [src/main/workers/worker-manager.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/workers/worker-manager.ts) | MODIFY | 2 |
+| [src/renderer/src/components/panels/SettingsPanel.tsx](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/components/panels/SettingsPanel.tsx) | MODIFY | 1, 2 |
+| [src/renderer/src/components/panels/FilesPanel.tsx](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/components/panels/FilesPanel.tsx) | MODIFY | 3 |
+| [src/renderer/src/components/Icons.tsx](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/components/Icons.tsx) | MODIFY | 3 |
+| [src/preload/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/preload/index.ts) | MODIFY | 1, 2, 3 |
+| [src/shared/types.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/shared/types.ts) | MODIFY | 1, 2, 3 |
+
+---
+
+## Notes from User Feedback
+
+> **OpenRouter is primary**: Gemini is supplementary storage only for now
+> **File deletion**: Only copies in `~/Work/brain` are deleted, not originals
+> **Import**: Drag-and-drop only (current implementation is correct)
+> **Full cleanup**: Deletion removes file, chunks, AND embeddings (no orphan data)
+> **Model catalogs**: Stored in separate files in `src/main/models/` for easy editing

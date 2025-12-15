@@ -1,0 +1,1293 @@
+# Constellations - Implementation Plan
+
+## Overview
+
+This document outlines a comprehensive refactoring and enhancement plan for the Constellations Electron app. The plan addresses critical bugs, architectural improvements, and UX enhancements identified during code review.
+
+---
+
+## P0 - Critical Issues (Must Fix Immediately)
+
+### 1. Fix Type Duplication Across Modules
+
+**Problem**: [BrainFileRow](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/App.tsx#23-36), [SearchResult](file:///Users/shaunakbhardwaj/Work/constellations/src/shared/types.ts#26-34), and other types are duplicated in three locations:
+- [src/shared/types.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/shared/types.ts) (correct location)
+- [src/preload/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/preload/index.ts) (duplicate)
+- [src/renderer/src/App.tsx](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/App.tsx) (duplicate)
+
+**Impact**: Type drift will cause bugs as the codebase evolves.
+
+**Implementation Steps**:
+1. Verify all types in [src/shared/types.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/shared/types.ts) are complete and accurate
+2. Update [src/preload/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/preload/index.ts):
+   - Remove local type definitions (lines 4-43)
+   - Add import: `import type { BrainFileRow, SearchResult, FileTransferResponse, BrainDataResponse, SearchResponse } from '../shared/types'`
+3. Update [src/renderer/src/App.tsx](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/App.tsx):
+   - Remove local type definitions (lines 23-44)
+   - Add import: `import type { BrainFileRow, SearchResult } from '../../shared/types'`
+4. Verify TypeScript compilation passes
+5. Test all IPC communication still works
+
+**Files Modified**:
+- [src/preload/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/preload/index.ts)
+- [src/renderer/src/App.tsx](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/App.tsx)
+
+---
+
+### 2. Fix Search Result fileName Bug
+
+**Problem**: In [src/main/search.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/search.ts) line 26, `fileName` is set to `result.file_id` (a UUID) instead of the actual filename.
+
+**Impact**: Search results display UUIDs instead of human-readable filenames.
+
+**Implementation Steps**:
+1. Modify [searchBrain()](file:///Users/shaunakbhardwaj/Work/constellations/src/preload/index.ts#53-56) to join with the `files` table to get the actual filename
+2. Update the search query to retrieve `relative_path` from SQLite
+3. Options:
+   - **Option A**: Query SQLite after getting LanceDB results (simpler, two queries)
+   - **Option B**: Store `relative_path` in LanceDB documents table (faster, denormalized)
+4. Update the mapping to use actual filename
+5. Test search results display correct filenames
+
+**Files Modified**:
+- [src/main/search.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/search.ts)
+
+**Recommended Approach**: Option A for now (simpler), migrate to Option B if performance becomes an issue.
+
+---
+
+### 3. Add React Error Boundaries
+
+**Problem**: If any React component throws an error, the entire app crashes with a blank screen.
+
+**Impact**: Poor user experience, no error recovery.
+
+**Implementation Steps**:
+1. Create `src/renderer/src/components/ErrorBoundary.tsx`:
+   - Implement class component with `componentDidCatch`
+   - Display user-friendly error message
+   - Provide "Reload" button
+   - Log errors to console
+2. Wrap `<App />` in [src/renderer/src/main.tsx](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/main.tsx) with `<ErrorBoundary>`
+3. Optionally wrap `<GalaxyCanvas />` separately for isolated recovery
+4. Test by throwing errors in components
+
+**Files Created**:
+- `src/renderer/src/components/ErrorBoundary.tsx`
+
+**Files Modified**:
+- [src/renderer/src/main.tsx](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/main.tsx)
+
+---
+
+### 4. Fix Main Process Monolith
+
+**Problem**: [src/main/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/index.ts) is 329 lines handling window creation, IPC, file operations, and database queries.
+
+**Impact**: Hard to maintain, test, and reason about.
+
+**Implementation Steps**:
+1. Create new directory structure:
+   ```
+   src/main/ipc/
+   ├── handlers/
+   │   ├── files.ts      (import-files handler)
+   │   ├── brain.ts      (fetch-brain-data handler)
+   │   └── search.ts     (search-brain handler)
+   └── index.ts          (registers all handlers)
+   ```
+2. Extract `import-files` handler to `src/main/ipc/handlers/files.ts`:
+   - Move [FileTransferPayload](file:///Users/shaunakbhardwaj/Work/constellations/src/main/index.ts#24-28) interface
+   - Move [copyEntry()](file:///Users/shaunakbhardwaj/Work/constellations/src/main/index.ts#280-289), [ensureUniqueDestination()](file:///Users/shaunakbhardwaj/Work/constellations/src/main/index.ts#290-308), [isPathSafe()](file:///Users/shaunakbhardwaj/Work/constellations/src/main/index.ts#309-329) functions
+   - Export `registerFileHandlers(ipcMain)` function
+3. Extract `fetch-brain-data` handler to `src/main/ipc/handlers/brain.ts`:
+   - Move [BrainFileRow](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/App.tsx#23-36) interface (or import from shared)
+   - Export `registerBrainHandlers(ipcMain)` function
+4. Extract `search-brain` handler to `src/main/ipc/handlers/search.ts`:
+   - Export `registerSearchHandlers(ipcMain)` function
+5. Create `src/main/ipc/index.ts`:
+   - Import all handler registration functions
+   - Export single `registerAllHandlers(ipcMain)` function
+6. Update [src/main/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/index.ts):
+   - Import and call `registerAllHandlers(ipcMain)` in `app.whenReady()`
+   - Remove extracted code
+7. Test all IPC communication
+
+**Files Created**:
+- `src/main/ipc/index.ts`
+- `src/main/ipc/handlers/files.ts`
+- `src/main/ipc/handlers/brain.ts`
+- `src/main/ipc/handlers/search.ts`
+
+**Files Modified**:
+- [src/main/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/index.ts)
+
+---
+
+## P1 - High Priority (Fix Soon)
+
+### 5. Add Indexing Progress Feedback
+
+**Problem**: Users have no visibility into indexing progress. Large files show no feedback.
+
+**Impact**: Poor UX, users don't know if the app is working.
+
+**Implementation Steps**:
+1. Add new IPC event channel `indexing-progress`:
+   ```typescript
+   type IndexingProgress = {
+     type: 'started' | 'progress' | 'completed' | 'failed'
+     fileId: string
+     relativePath: string
+     currentChunk?: number
+     totalChunks?: number
+     error?: string
+   }
+   ```
+2. Update [src/main/ingestion/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/ingestion/index.ts):
+   - Accept `BrowserWindow` reference or event emitter
+   - Emit progress events at key points:
+     - When file processing starts
+     - After each embedding batch
+     - When file completes/fails
+3. Update [src/preload/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/preload/index.ts):
+   - Add `onIndexingProgress(callback)` to API
+4. Update [src/renderer/src/App.tsx](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/App.tsx):
+   - Add state for indexing progress
+   - Display progress indicator/toast notifications
+   - Show real-time status in data table
+5. Test with large files
+
+**Files Modified**:
+- [src/main/ingestion/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/ingestion/index.ts)
+- [src/main/scanner.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/scanner.ts)
+- [src/main/watcher.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/watcher.ts)
+- [src/preload/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/preload/index.ts)
+- [src/renderer/src/App.tsx](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/App.tsx)
+- [src/shared/types.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/shared/types.ts)
+
+---
+
+### 6. Parallelize Scanner File Processing
+
+**Problem**: [scanBrainDirectory](file:///Users/shaunakbhardwaj/Work/constellations/src/main/scanner.ts#11-54) processes files sequentially with `await processFile()` in a loop.
+
+**Impact**: Initial scan is slow for large directories.
+
+**Implementation Steps**:
+1. Update [src/main/scanner.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/scanner.ts):
+   - Implement concurrent processing with `Promise.all()` and batching
+   - Add concurrency limit (e.g., 3-5 files at once)
+   - Use `p-limit` library or custom semaphore
+2. Add configuration for concurrency limit
+3. Ensure proper error handling for batch failures
+4. Test with large directory
+
+**Files Modified**:
+- [src/main/scanner.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/scanner.ts)
+- [package.json](file:///Users/shaunakbhardwaj/Work/constellations/package.json) (add `p-limit` dependency)
+
+**Example**:
+```typescript
+import pLimit from 'p-limit'
+
+const limit = pLimit(5) // Process 5 files concurrently
+
+const tasks = filesOnDisk.map(diskPath => 
+  limit(() => processFile(diskPath, relativePath))
+)
+
+await Promise.all(tasks)
+```
+
+---
+
+### 7. Add Transaction Safety to Ingestion
+
+**Problem**: If embedding generation fails mid-way, the database is left in an inconsistent state:
+- File status set to 'processing'
+- Old chunks deleted
+- New chunks not added
+
+**Impact**: Data corruption, orphaned records.
+
+**Implementation Steps**:
+1. Update [src/main/ingestion/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/ingestion/index.ts):
+   - Wrap all database operations in a transaction
+   - Use SQLite `BEGIN TRANSACTION` / `COMMIT` / `ROLLBACK`
+   - Only update file status to 'indexed' after all operations succeed
+2. Handle LanceDB operations separately (they don't support transactions):
+   - Keep old embeddings until new ones are confirmed
+   - Delete old embeddings only after successful insertion
+3. Add retry logic for transient failures
+4. Test failure scenarios
+
+**Files Modified**:
+- [src/main/ingestion/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/ingestion/index.ts)
+
+**Example**:
+```typescript
+const transaction = db.transaction(() => {
+  // Delete old chunks
+  // Insert new chunks
+  // Update file status
+})
+
+try {
+  transaction()
+  // Only then update LanceDB
+} catch (error) {
+  // Rollback happens automatically
+}
+```
+
+---
+
+### 8. Fix LanceDB Orphan Cleanup
+
+**Problem**: When [handleFileDelete](file:///Users/shaunakbhardwaj/Work/constellations/src/main/watcher.ts#80-92) runs, it only deletes from SQLite. LanceDB embeddings remain orphaned.
+
+**Impact**: Wasted disk space, stale search results.
+
+**Implementation Steps**:
+1. Update [src/main/watcher.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/watcher.ts) [handleFileDelete()](file:///Users/shaunakbhardwaj/Work/constellations/src/main/watcher.ts#80-92):
+   - Get file ID before deleting from SQLite
+   - Delete from LanceDB using file ID
+   - Then delete from SQLite
+2. Add error handling for LanceDB deletion failures
+3. Consider adding a cleanup job that runs periodically to find orphans
+4. Test file deletion flow
+
+**Files Modified**:
+- [src/main/watcher.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/watcher.ts)
+
+---
+
+### 9. Add Configuration System
+
+**Problem**: Hardcoded values throughout:
+- Brain directory path
+- Chunk size (1000)
+- Batch size (8)
+- Max file size (10MB)
+- Embedding model
+
+**Impact**: Users can't customize behavior without code changes.
+
+**Implementation Steps**:
+1. Create `src/main/config/index.ts`:
+   - Define configuration schema
+   - Load from `~/.constellations/config.json`
+   - Provide defaults
+   - Validate configuration
+2. Add configuration options:
+   ```typescript
+   {
+     brainDirectory: string
+     ingestion: {
+       maxFileSize: number
+       chunkSize: number
+       batchSize: number
+       concurrency: number
+     }
+     embedding: {
+       model: string
+     }
+   }
+   ```
+3. Update all modules to use config instead of hardcoded values
+4. Add IPC handlers to get/set configuration
+5. Add settings UI panel in renderer
+6. Test configuration changes
+
+**Files Created**:
+- `src/main/config/index.ts`
+- `src/main/config/schema.ts`
+
+**Files Modified**:
+- [src/main/brain-path.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/brain-path.ts)
+- [src/main/ingestion/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/ingestion/index.ts)
+- [src/main/ingestion/splitter.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/ingestion/splitter.ts)
+- [src/main/scanner.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/scanner.ts)
+- Multiple other files
+
+---
+
+## Model Management System (Major Feature)
+
+> [!IMPORTANT]
+> This is a major feature that transforms the app from a single-model system to a flexible, multi-provider embedding platform. It should be implemented after P0/P1 fixes are complete.
+
+### Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Model Catalog                         │
+│  (JSON file - easily extensible)                        │
+├─────────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
+│  │    Local     │  │  OpenRouter  │  │  Direct API  │  │
+│  │  (Xenova)    │  │   Gateway    │  │  (optional)  │  │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  │
+│         └────────────┬────┴──────────────────┘          │
+│                      ▼                                   │
+│         ┌─────────────────────────┐                     │
+│         │  EmbeddingProvider      │                     │
+│         │  (Unified Interface)    │                     │
+│         └─────────────────────────┘                     │
+│                      │                                   │
+│         ┌────────────┴────────────┐                     │
+│         ▼                         ▼                     │
+│  ┌─────────────┐         ┌─────────────┐               │
+│  │  LanceDB    │         │   Future:   │               │
+│  │  (Vectors)  │         │  LLM Query  │               │
+│  │             │         │  Synthesis  │               │
+│  └─────────────┘         └─────────────┘               │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+### M1. Extensible Model Catalog
+
+**Goal**: JSON-based catalog that's easy to extend without code changes.
+
+**Implementation Steps**:
+
+1. Create `src/main/models/catalog.json`:
+```json
+{
+  "version": 1,
+  "embeddings": [
+    {
+      "id": "minilm-l6-v2",
+      "name": "MiniLM L6 v2",
+      "provider": "local",
+      "dimensions": 384,
+      "huggingFaceId": "Xenova/all-MiniLM-L6-v2",
+      "sizeBytes": 90000000,
+      "description": "Fast, lightweight, good for general use",
+      "tags": ["english", "fast", "small"]
+    },
+    {
+      "id": "bge-m3",
+      "name": "BGE-M3",
+      "provider": "local",
+      "dimensions": 1024,
+      "huggingFaceId": "Xenova/bge-m3",
+      "sizeBytes": 2300000000,
+      "description": "Excellent multilingual support",
+      "tags": ["multilingual", "high-quality"]
+    },
+    {
+      "id": "bge-small-en",
+      "name": "BGE Small English",
+      "provider": "local",
+      "dimensions": 384,
+      "huggingFaceId": "Xenova/bge-small-en-v1.5",
+      "sizeBytes": 130000000,
+      "description": "Optimized for English content",
+      "tags": ["english", "small"]
+    },
+    {
+      "id": "openai-3-small",
+      "name": "OpenAI text-embedding-3-small",
+      "provider": "openrouter",
+      "dimensions": 1536,
+      "openRouterId": "openai/text-embedding-3-small",
+      "costPer1MTokens": 0.02,
+      "description": "High quality, fast, affordable",
+      "tags": ["api", "high-quality"]
+    },
+    {
+      "id": "openai-3-large",
+      "name": "OpenAI text-embedding-3-large",
+      "provider": "openrouter",
+      "dimensions": 3072,
+      "openRouterId": "openai/text-embedding-3-large",
+      "costPer1MTokens": 0.13,
+      "description": "Highest quality OpenAI embeddings",
+      "tags": ["api", "highest-quality"]
+    },
+    {
+      "id": "voyage-3",
+      "name": "Voyage AI voyage-3",
+      "provider": "openrouter",
+      "dimensions": 1024,
+      "openRouterId": "voyageai/voyage-3",
+      "costPer1MTokens": 0.06,
+      "description": "Optimized for RAG retrieval",
+      "tags": ["api", "rag-optimized"]
+    }
+  ],
+  "llms": [
+    {
+      "id": "claude-3-haiku",
+      "name": "Claude 3 Haiku",
+      "provider": "openrouter",
+      "openRouterId": "anthropic/claude-3-haiku",
+      "contextWindow": 200000,
+      "costPer1MInput": 0.25,
+      "costPer1MOutput": 1.25,
+      "description": "Fast, affordable for query synthesis"
+    },
+    {
+      "id": "gpt-4o-mini",
+      "name": "GPT-4o Mini",
+      "provider": "openrouter",
+      "openRouterId": "openai/gpt-4o-mini",
+      "contextWindow": 128000,
+      "costPer1MInput": 0.15,
+      "costPer1MOutput": 0.60,
+      "description": "Affordable GPT-4 class model"
+    }
+  ]
+}
+```
+
+2. Create `src/main/models/catalog.ts`:
+   - Load catalog from JSON file
+   - Provide type-safe accessors
+   - Support catalog refresh without restart
+   - Future: fetch updated catalog from remote URL
+
+3. Create types in [src/shared/types.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/shared/types.ts):
+```typescript
+type ModelProvider = 'local' | 'openrouter' | 'direct-api'
+
+interface EmbeddingModelInfo {
+  id: string
+  name: string
+  provider: ModelProvider
+  dimensions: number
+  huggingFaceId?: string      // For local models
+  openRouterId?: string       // For OpenRouter
+  apiEndpoint?: string        // For direct API
+  sizeBytes?: number          // For local models
+  costPer1MTokens?: number    // For API models
+  description: string
+  tags: string[]
+}
+
+interface LLMModelInfo {
+  id: string
+  name: string
+  provider: ModelProvider
+  openRouterId?: string
+  contextWindow: number
+  costPer1MInput?: number
+  costPer1MOutput?: number
+  description: string
+}
+```
+
+**Files Created**:
+- `src/main/models/catalog.json`
+- `src/main/models/catalog.ts`
+- `src/main/models/types.ts`
+
+**Files Modified**:
+- [src/shared/types.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/shared/types.ts)
+
+---
+
+### M2. Unified Embedding Provider Interface
+
+**Goal**: Abstract away differences between local and API-based models.
+
+**Implementation Steps**:
+
+1. Create `src/main/models/providers/base.ts`:
+```typescript
+interface EmbeddingProvider {
+  readonly id: string
+  readonly name: string
+  readonly dimensions: number
+  readonly provider: ModelProvider
+  
+  // Check if ready (model downloaded, API key set)
+  isReady(): Promise<boolean>
+  
+  // Generate embeddings for text chunks
+  embed(texts: string[]): Promise<number[][]>
+  
+  // Cleanup resources
+  dispose(): Promise<void>
+}
+```
+
+2. Create `src/main/models/providers/local.ts`:
+   - Wraps `@xenova/transformers`
+   - Handles model loading/caching
+   - Reports download progress
+
+3. Create `src/main/models/providers/openrouter.ts`:
+   - Uses OpenRouter API
+   - Handles authentication
+   - Rate limiting and retries
+   - Error handling for API failures
+
+4. Create `src/main/models/providers/index.ts`:
+   - Factory function to create provider by model ID
+   - Provider registry
+
+**Files Created**:
+- `src/main/models/providers/base.ts`
+- `src/main/models/providers/local.ts`
+- `src/main/models/providers/openrouter.ts`
+- `src/main/models/providers/index.ts`
+
+---
+
+### M3. Multi-Model Vector Storage (Option C)
+
+**Goal**: Support multiple embedding models simultaneously with cleanup prompts.
+
+**Design Decisions**:
+- Each model gets its own LanceDB table: `documents_{model_id}`
+- SQLite tracks which models have embeddings for each file
+- When user switches models, generate new embeddings first
+- Prompt user: "Delete old embeddings from {old_model}?"
+- User can keep both temporarily (testing) or clean up
+
+**Implementation Steps**:
+
+1. Add migration `002_model_embeddings.sql`:
+```sql
+-- Track which models have embeddings for each file
+CREATE TABLE IF NOT EXISTS model_embeddings (
+  model_id TEXT NOT NULL,
+  file_id TEXT NOT NULL,
+  chunk_count INTEGER NOT NULL,
+  dimensions INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (model_id, file_id),
+  FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE
+);
+
+-- Track active model in settings
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+```
+
+2. Update [src/main/ingestion/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/ingestion/index.ts):
+   - Accept model ID parameter
+   - Create model-specific LanceDB table
+   - Record embeddings in `model_embeddings` table
+   - Support re-embedding with different model
+
+3. Create `src/main/models/manager.ts`:
+```typescript
+class ModelManager {
+  // Get current active model
+  getActiveModel(): EmbeddingModelInfo
+  
+  // Switch to different model
+  setActiveModel(modelId: string): Promise<void>
+  
+  // Get models that have embeddings
+  getEmbeddedModels(): Promise<{modelId: string, fileCount: number}[]>
+  
+  // Delete all embeddings for a model
+  deleteModelEmbeddings(modelId: string): Promise<void>
+  
+  // Re-embed all files with new model
+  reindexWithModel(modelId: string, onProgress: ProgressCallback): Promise<void>
+}
+```
+
+4. Update [src/main/search.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/search.ts):
+   - Use active model's table for search
+   - Include model info in search results
+
+**Files Created**:
+- `src/main/db/migrations/002_model_embeddings.sql`
+- `src/main/models/manager.ts`
+
+**Files Modified**:
+- [src/main/ingestion/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/ingestion/index.ts)
+- [src/main/search.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/search.ts)
+- [src/main/db/lance.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/db/lance.ts)
+
+---
+
+### M4. OpenRouter Integration
+
+**Goal**: Single API gateway for both embeddings and future LLM features.
+
+**Why OpenRouter**:
+- One API key for many providers (OpenAI, Anthropic, Cohere, Voyage, etc.)
+- Consistent API format
+- Built-in rate limiting and fallbacks
+- Supports both embeddings AND chat completions
+
+**Implementation Steps**:
+
+1. Create `src/main/api/openrouter.ts`:
+```typescript
+class OpenRouterClient {
+  private apiKey: string | null = null
+  
+  setApiKey(key: string): void
+  
+  // Embedding endpoint
+  async embed(texts: string[], model: string): Promise<number[][]>
+  
+  // Chat completion (for future LLM features)
+  async chat(messages: ChatMessage[], model: string): Promise<string>
+  
+  // List available models
+  async listModels(): Promise<ModelInfo[]>
+  
+  // Check API key validity
+  async validateKey(): Promise<boolean>
+}
+```
+
+2. Handle OpenRouter API responses:
+   - Parse embedding vectors
+   - Handle rate limits (429) with exponential backoff
+   - Handle auth errors (401/403)
+   - Log usage for cost tracking
+
+3. Add configuration for OpenRouter:
+   - Base URL (default: `https://openrouter.ai/api/v1`)
+   - Timeout settings
+   - Retry configuration
+
+**Files Created**:
+- `src/main/api/openrouter.ts`
+- `src/main/api/types.ts`
+
+---
+
+### M5. Secure API Key Management
+
+**Goal**: Securely store and manage API keys using OS keychain.
+
+**Implementation Steps**:
+
+1. Create `src/main/config/secrets.ts`:
+```typescript
+import { safeStorage } from 'electron'
+
+class SecretManager {
+  // Store encrypted API key
+  setApiKey(provider: string, key: string): void {
+    const encrypted = safeStorage.encryptString(key)
+    // Store encrypted buffer in config file
+  }
+  
+  // Retrieve and decrypt API key
+  getApiKey(provider: string): string | null {
+    // Retrieve encrypted buffer
+    return safeStorage.decryptString(encrypted)
+  }
+  
+  // Delete API key
+  deleteApiKey(provider: string): void
+  
+  // Check if key exists
+  hasApiKey(provider: string): boolean
+  
+  // Mask key for display (show last 4 chars)
+  getMaskedKey(provider: string): string | null
+}
+```
+
+2. Create IPC handlers for key management:
+   - `set-api-key`: Store new key
+   - `get-api-key-status`: Check if key exists (don't return actual key)
+   - `delete-api-key`: Remove key
+   - `validate-api-key`: Test key with provider
+
+3. Security considerations:
+   - Never log API keys
+   - Never send keys to renderer (only masked versions)
+   - Use `safeStorage` which uses OS keychain
+   - Clear keys from memory after use
+
+**Files Created**:
+- `src/main/config/secrets.ts`
+- `src/main/ipc/handlers/secrets.ts`
+
+**Files Modified**:
+- [src/preload/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/preload/index.ts) (add key management API)
+- [src/shared/types.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/shared/types.ts) (add types)
+
+---
+
+### M6. Local Model Download Management
+
+**Goal**: Download and manage local embedding models on-demand.
+
+**Implementation Steps**:
+
+1. Create `src/main/models/downloader.ts`:
+```typescript
+interface DownloadProgress {
+  modelId: string
+  status: 'pending' | 'downloading' | 'extracting' | 'ready' | 'error'
+  bytesDownloaded: number
+  totalBytes: number
+  error?: string
+}
+
+class ModelDownloader {
+  // Download model from HuggingFace
+  async download(modelId: string, onProgress: (p: DownloadProgress) => void): Promise<void>
+  
+  // Check if model is downloaded
+  isDownloaded(modelId: string): boolean
+  
+  // Get downloaded models
+  getDownloadedModels(): string[]
+  
+  // Delete downloaded model
+  deleteModel(modelId: string): Promise<void>
+  
+  // Get model storage path
+  getModelPath(modelId: string): string
+  
+  // Get total storage used
+  getStorageUsed(): number
+}
+```
+
+2. Configure model storage location:
+   - Default: `app.getPath('userData')/models/`
+   - Override `@xenova/transformers` cache location
+   - Track download state in SQLite
+
+3. Add IPC handlers:
+   - `download-model`: Start download with progress
+   - `get-model-status`: Check download state
+   - `delete-model`: Remove downloaded model
+   - `get-storage-info`: Get disk usage
+
+4. Handle download edge cases:
+   - Resume interrupted downloads
+   - Verify checksums
+   - Handle disk full errors
+
+**Files Created**:
+- `src/main/models/downloader.ts`
+- `src/main/ipc/handlers/models.ts`
+
+**Files Modified**:
+- [src/preload/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/preload/index.ts)
+- [src/shared/types.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/shared/types.ts)
+
+---
+
+### M7. Model Selection UI
+
+**Goal**: User-friendly interface for model selection and management.
+
+**Implementation Steps**:
+
+1. Create `src/renderer/src/components/ModelSettings.tsx`:
+```tsx
+// UI mockup structure
+<ModelSettings>
+  <CurrentModelInfo>
+    <ModelName>MiniLM L6 v2 (Local)</ModelName>
+    <Dimensions>384</Dimensions>
+    <FilesIndexed>142</FilesIndexed>
+  </CurrentModelInfo>
+  
+  <Warning>
+    Changing models requires re-indexing all files.
+    This may take several minutes.
+  </Warning>
+  
+  <ModelSection title="Local Models">
+    <ModelCard 
+      model={minilm}
+      status="downloaded"
+      isActive={true}
+      onSelect={handleSelect}
+    />
+    <ModelCard 
+      model={bgeM3}
+      status="not-downloaded"
+      onDownload={handleDownload}
+      downloadProgress={progress}
+    />
+  </ModelSection>
+  
+  <ModelSection title="API Models (OpenRouter)">
+    <ApiKeyInput 
+      provider="openrouter"
+      hasKey={hasOpenRouterKey}
+      onSave={handleSaveKey}
+    />
+    <ModelCard 
+      model={openai3Small}
+      status={hasKey ? 'ready' : 'needs-key'}
+      onSelect={handleSelect}
+    />
+  </ModelSection>
+  
+  <Actions>
+    <Button onClick={handleApply}>Apply Changes</Button>
+  </Actions>
+</ModelSettings>
+```
+
+2. Add state management for:
+   - Current model selection
+   - Download progress
+   - API key status
+   - Re-indexing progress
+
+3. Add confirmation dialog for model switch:
+   - Show number of files to re-index
+   - Estimated time
+   - Option to delete old embeddings
+
+**Files Created**:
+- `src/renderer/src/components/ModelSettings.tsx`
+- `src/renderer/src/components/ModelCard.tsx`
+- `src/renderer/src/components/ApiKeyInput.tsx`
+- `src/renderer/src/components/DownloadProgress.tsx`
+
+**Files Modified**:
+- [src/renderer/src/App.tsx](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/App.tsx)
+- [src/renderer/src/assets/main.css](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/assets/main.css)
+
+---
+
+### M8. Old Embeddings Cleanup Flow
+
+**Goal**: Let users manage and clean up old model embeddings.
+
+**Implementation Steps**:
+
+1. Create cleanup UI in `ModelSettings.tsx`:
+```tsx
+<EmbeddingsCleanup>
+  <Title>Existing Embeddings</Title>
+  <EmbeddingRow model="minilm-l6-v2" files={142} size="45MB" isActive />
+  <EmbeddingRow model="bge-m3" files={142} size="180MB">
+    <DeleteButton onClick={handleDelete}>Delete</DeleteButton>
+  </EmbeddingRow>
+</EmbeddingsCleanup>
+```
+
+2. Add IPC handlers:
+   - `get-embedding-stats`: Get size/count per model
+   - `delete-model-embeddings`: Remove embeddings for model
+
+3. Add confirmation dialog:
+   - "Delete embeddings from BGE-M3? This will free 180MB."
+   - Cannot delete active model's embeddings
+
+4. After model switch, prompt:
+   - "Switch successful! Delete old MiniLM embeddings?"
+   - "Keep both" / "Delete old"
+
+**Files Modified**:
+- `src/renderer/src/components/ModelSettings.tsx`
+- `src/main/models/manager.ts`
+- `src/main/ipc/handlers/models.ts`
+
+---
+
+### M9. Future: LLM Integration Hooks
+
+**Goal**: Prepare architecture for future LLM-powered features.
+
+> [!NOTE]
+> This is a placeholder for future work. The OpenRouter integration will already support chat completions, so adding LLM features will be straightforward.
+
+**Potential Future Features**:
+
+1. **Query Enhancement**: 
+   - User query → LLM reformulates for better retrieval
+   - "What is X?" → "Explain X, define X, describe X"
+
+2. **Answer Synthesis**:
+   - Retrieve relevant chunks
+   - LLM generates coherent answer from chunks
+   - Full RAG pipeline
+
+3. **Document Summarization**:
+   - "Summarize this file"
+   - Generate abstracts for long documents
+
+4. **Smart Tagging**:
+   - Auto-tag files based on content
+   - Suggest categories
+
+5. **Semantic Deduplication**:
+   - Find similar/duplicate content
+   - Suggest merges
+
+**Preparation Steps**:
+
+1. Add LLM models to catalog (already done in M1)
+2. Add chat completion method to OpenRouter client (already done in M4)
+3. Create `src/main/llm/index.ts` placeholder:
+```typescript
+// Future LLM service
+class LLMService {
+  async enhanceQuery(query: string): Promise<string>
+  async synthesizeAnswer(query: string, chunks: string[]): Promise<string>
+  async summarize(text: string): Promise<string>
+}
+```
+
+**Files Created** (placeholder):
+- `src/main/llm/index.ts`
+
+---
+
+## P2 - Medium Priority (Nice to Have)
+
+### 10. Implement Schema Migrations
+
+**Problem**: Using `CREATE TABLE IF NOT EXISTS` works for new tables but can't handle schema changes.
+
+**Impact**: Future schema changes will be difficult to deploy.
+
+**Implementation Steps**:
+1. Add `better-sqlite3-migrate` or similar library
+2. Create `src/main/db/migrations/` directory
+3. Convert current schema to migration `001_initial.sql`
+4. Update [src/main/db/sqlite.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/db/sqlite.ts) to run migrations on init
+5. Add version tracking table
+6. Document migration creation process
+
+**Files Created**:
+- `src/main/db/migrations/001_initial.sql`
+- `src/main/db/migrations/README.md`
+
+**Files Modified**:
+- [src/main/db/sqlite.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/db/sqlite.ts)
+- [package.json](file:///Users/shaunakbhardwaj/Work/constellations/package.json)
+
+---
+
+### 11. Populate Chunk Metadata
+
+**Problem**: Schema has `char_start`, `char_end`, `token_count` but [splitter.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/ingestion/splitter.ts) doesn't populate them.
+
+**Impact**: Missing useful metadata for context windows and debugging.
+
+**Implementation Steps**:
+1. Update [src/main/ingestion/splitter.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/ingestion/splitter.ts):
+   - Return chunk objects with metadata instead of just strings
+   - Track character positions during splitting
+   - Estimate token count (rough approximation: chars / 4)
+2. Update [src/main/ingestion/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/ingestion/index.ts):
+   - Store metadata when inserting chunks
+3. Update queries to return metadata
+4. Consider displaying in UI
+
+**Files Modified**:
+- [src/main/ingestion/splitter.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/ingestion/splitter.ts)
+- [src/main/ingestion/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/ingestion/index.ts)
+
+---
+
+### 12. Add Search Debouncing
+
+**Problem**: No debouncing on search input, users can spam Enter key.
+
+**Impact**: Unnecessary API calls, poor performance.
+
+**Implementation Steps**:
+1. Update [src/renderer/src/App.tsx](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/App.tsx):
+   - Add debounce hook or use `lodash.debounce`
+   - Debounce search input changes (300ms)
+   - Show loading indicator during debounce
+2. Consider auto-search on typing (with debounce)
+3. Test search UX
+
+**Files Modified**:
+- [src/renderer/src/App.tsx](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/App.tsx)
+
+---
+
+### 13. Fix GalaxyCanvas Resource Cleanup
+
+**Problem**: Three.js resources (scene, renderer, controls) might not be fully cleaned up on component remount.
+
+**Impact**: Potential WebGL context leaks, memory leaks.
+
+**Implementation Steps**:
+1. Update [src/renderer/src/components/GalaxyCanvas.tsx](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/components/GalaxyCanvas.tsx):
+   - Add comprehensive cleanup in `useEffect` return
+   - Dispose geometries, materials, textures
+   - Remove event listeners
+   - Dispose renderer
+2. Test component mounting/unmounting
+3. Check for memory leaks in DevTools
+
+**Files Modified**:
+- [src/renderer/src/components/GalaxyCanvas.tsx](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/components/GalaxyCanvas.tsx)
+
+---
+
+### 14. Add Logging System
+
+**Problem**: Using `console.log` throughout, no log levels, no persistence.
+
+**Impact**: Difficult to debug production issues.
+
+**Implementation Steps**:
+1. Add `electron-log` dependency
+2. Create [src/main/utils/logger.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/utils/logger.ts) wrapper
+3. Replace all `console.log` with proper logging
+4. Configure log levels (debug, info, warn, error)
+5. Configure log file rotation
+6. Add IPC handler to retrieve logs for debugging
+
+**Files Created**:
+- [src/main/utils/logger.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/utils/logger.ts) (already exists, enhance it)
+
+**Files Modified**:
+- All files with console.log statements
+- [package.json](file:///Users/shaunakbhardwaj/Work/constellations/package.json)
+
+---
+
+### 15. Add Unit Tests
+
+**Problem**: Zero test coverage.
+
+**Impact**: Regressions are easy, refactoring is risky.
+
+**Implementation Steps**:
+1. Add testing dependencies:
+   - `vitest` for unit tests
+   - `@testing-library/react` for component tests
+2. Create test files:
+   - `src/main/ingestion/splitter.test.ts`
+   - `src/main/utils/logger.test.ts`
+   - `src/renderer/src/App.test.tsx`
+3. Add test scripts to [package.json](file:///Users/shaunakbhardwaj/Work/constellations/package.json)
+4. Set up CI to run tests
+5. Aim for 60%+ coverage on critical paths
+
+**Files Created**:
+- `vitest.config.ts`
+- Multiple `*.test.ts` files
+
+**Files Modified**:
+- [package.json](file:///Users/shaunakbhardwaj/Work/constellations/package.json)
+
+---
+
+## UX Enhancements
+
+### 16. Improve Search Results Display
+
+**Implementation Steps**:
+1. Add "No results" empty state
+2. Highlight matched text in results
+3. Show file type icons
+4. Add "Open file" button to jump to file location
+5. Show more context around matched text
+6. Add result ranking/sorting options
+
+**Files Modified**:
+- [src/renderer/src/App.tsx](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/App.tsx)
+- [src/renderer/src/assets/main.css](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/assets/main.css)
+
+---
+
+### 17. Add Settings Panel
+
+**Implementation Steps**:
+1. Create `src/renderer/src/components/SettingsPanel.tsx`
+2. Add UI for configuration options:
+   - Brain directory path (with file picker)
+   - Chunk size
+   - Max file size
+   - Embedding model selection
+3. Add IPC handlers for settings CRUD
+4. Persist settings to config file
+5. Add settings button to main UI
+
+**Files Created**:
+- `src/renderer/src/components/SettingsPanel.tsx`
+
+**Files Modified**:
+- [src/renderer/src/App.tsx](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/App.tsx)
+- `src/main/ipc/handlers/settings.ts` (new)
+
+---
+
+### 18. Add File Type Icons
+
+**Implementation Steps**:
+1. Add file type icon library or create custom icons
+2. Map file extensions to icons
+3. Display icons in data table
+4. Display icons in search results
+
+**Files Modified**:
+- [src/renderer/src/App.tsx](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/App.tsx)
+- [src/renderer/src/assets/main.css](file:///Users/shaunakbhardwaj/Work/constellations/src/renderer/src/assets/main.css)
+
+---
+
+## Performance Optimizations
+
+### 19. Implement Incremental Indexing
+
+**Problem**: Re-indexing unchanged files wastes resources.
+
+**Current State**: Scanner checks `modified_at` timestamp, which is good.
+
+**Enhancement**: Add file checksums to detect content changes even if timestamp changes.
+
+**Implementation Steps**:
+1. Add checksum calculation to [src/main/ingestion/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/ingestion/index.ts)
+2. Store checksum in `files.checksum` column
+3. Skip indexing if checksum matches
+4. Test with file touch/move scenarios
+
+**Files Modified**:
+- [src/main/ingestion/index.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/ingestion/index.ts)
+- [src/main/scanner.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/scanner.ts)
+
+---
+
+### 20. Add Search Result Caching
+
+**Implementation Steps**:
+1. Implement LRU cache for search results
+2. Cache key: query string
+3. Cache TTL: 5 minutes
+4. Invalidate on file changes
+5. Test cache hit rates
+
+**Files Created**:
+- `src/main/cache/search-cache.ts`
+
+**Files Modified**:
+- [src/main/search.ts](file:///Users/shaunakbhardwaj/Work/constellations/src/main/search.ts)
+
+---
+
+## Maintenance & Operations
+
+### 21. Add Health Checks
+
+**Implementation Steps**:
+1. Create `src/main/health/index.ts`:
+   - Check SQLite connection
+   - Check LanceDB connection
+   - Check worker thread status
+   - Check disk space
+2. Run health checks on startup
+3. Add IPC handler to get health status
+4. Display health status in UI (dev mode)
+
+**Files Created**:
+- `src/main/health/index.ts`
+
+---
+
+### 22. Add Telemetry/Analytics (Optional)
+
+**Implementation Steps**:
+1. Add privacy-respecting telemetry
+2. Track:
+   - Number of files indexed
+   - Search query count
+   - Error rates
+   - Performance metrics
+3. Store locally, optionally send to analytics service
+4. Add opt-out in settings
+
+---
+
+## Implementation Order Recommendation
+
+### Phase 1: Foundation (Weeks 1-3)
+
+**Week 1 - Critical Fixes**:
+1. Fix type duplication (P0.1)
+2. Fix search fileName bug (P0.2)
+3. Add error boundaries (P0.3)
+
+**Week 2 - Architecture**:
+4. Refactor main process (P0.4)
+5. Add configuration system (P1.9)
+6. Add logging system (P2.14)
+
+**Week 3 - Data Integrity**:
+7. Add transaction safety (P1.7)
+8. Fix LanceDB orphan cleanup (P1.8)
+9. Implement schema migrations (P2.10)
+
+---
+
+### Phase 2: Model Management System (Weeks 4-6)
+
+**Week 4 - Model Infrastructure**:
+1. Create extensible model catalog (M1)
+2. Build unified embedding provider interface (M2)
+3. Implement multi-model vector storage schema (M3)
+
+**Week 5 - API Integration**:
+4. Build OpenRouter client (M4)
+5. Implement secure API key management (M5)
+6. Add local model download manager (M6)
+
+**Week 6 - Model UI**:
+7. Build model selection UI (M7)
+8. Implement embeddings cleanup flow (M8)
+9. Add LLM integration hooks (M9)
+
+---
+
+### Phase 3: Performance & Polish (Weeks 7-9)
+
+**Week 7 - Performance**:
+1. Parallelize scanner (P1.6)
+2. Add indexing progress feedback (P1.5)
+3. Add search debouncing (P2.12)
+
+**Week 8 - UX Enhancements**:
+4. Improve search results display (UX.16)
+5. Add settings panel integration (UX.17)
+6. Add file type icons (UX.18)
+
+**Week 9 - Testing & Launch**:
+7. Add unit tests (P2.15)
+8. Fix GalaxyCanvas cleanup (P2.13)
+9. Add health checks (Maint.21)
+10. Final QA and polish
+
+---
+
+## Summary
+
+| Phase | Duration | Focus |
+|-------|----------|-------|
+| Foundation | 3 weeks | Bug fixes, architecture, data integrity |
+| Model Management | 3 weeks | Multi-model support, OpenRouter, API keys |
+| Polish | 3 weeks | Performance, UX, testing |
+
+**Total estimated time**: 9 weeks
+
+---
+
+## Notes
+
+- Each item includes file paths to make implementation easier
+- Breaking changes should be avoided where possible
+- All changes should be backwards compatible with existing data
+- Test thoroughly before deploying to production
+- Consider creating feature flags for major changes
+- Model Management is the biggest feature addition and should be well-tested before release
+- OpenRouter API availability for embeddings should be verified early in Phase 2
+

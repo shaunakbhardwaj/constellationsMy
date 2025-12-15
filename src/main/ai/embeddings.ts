@@ -1,12 +1,24 @@
-import { pipeline, type FeatureExtractionPipeline } from '@xenova/transformers'
+import { env, pipeline, type FeatureExtractionPipeline } from '@xenova/transformers'
+import { getConfig } from '../config'
+import { getTransformersCacheDir } from './model-manager'
 
 let extractor: FeatureExtractionPipeline | null = null
+let loadedModelId: string | null = null
 
-export async function initEmbeddingModel(): Promise<void> {
-  if (extractor) return
+export async function initEmbeddingModel(modelId?: string): Promise<void> {
+  const desiredModelId = modelId ?? getConfig().embedding.model
+  if (extractor && loadedModelId === desiredModelId) return
 
-  console.log('[AI] Loading embedding model (all-MiniLM-L6-v2)...')
-  extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2')
+  if (extractor && loadedModelId !== desiredModelId) {
+    await disposeEmbeddingModel()
+  }
+
+  env.cacheDir = getTransformersCacheDir()
+  env.allowLocalModels = true
+
+  console.log('[AI] Loading embedding model...', { modelId: desiredModelId })
+  extractor = await pipeline('feature-extraction', desiredModelId)
+  loadedModelId = desiredModelId
   console.log('[AI] Model loaded successfully')
 }
 
@@ -24,6 +36,7 @@ export async function disposeEmbeddingModel(): Promise<void> {
       await (extractor as unknown as { dispose: () => Promise<void> }).dispose()
     }
     extractor = null
+    loadedModelId = null
     console.log('[AI] Model disposed')
   }
 }

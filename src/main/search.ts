@@ -1,13 +1,6 @@
-import { getLanceDB } from './db'
+import { getLanceDB, getSQLite } from './db'
 import { generateEmbeddingsInWorker } from './workers/worker-manager'
-
-export type SearchResult = {
-  fileId: string
-  fileName: string
-  text: string
-  score: number
-  chunkIndex: number
-}
+import type { SearchResult } from '../shared/types'
 
 export async function searchBrain(query: string, limit = 10): Promise<SearchResult[]> {
   console.log(`[Search] Query: "${query}"`)
@@ -20,13 +13,49 @@ export async function searchBrain(query: string, limit = 10): Promise<SearchResu
 
     const results = await table.search(queryVector).limit(limit).toArray()
 
-    const searchResults: SearchResult[] = results.map((result: any) => ({
-      fileId: result.file_id,
-      fileName: result.file_id,
-      text: result.text,
-      score: result._distance,
-      chunkIndex: result.chunk_index
+    const rawResults = results.map((result: any) => ({
+      fileId: String(result.file_id),
+      text: String(result.text ?? ''),
+      score: Number(result._distance),
+      chunkIndex: Number(result.chunk_index)
     }))
+
+    const fileIds = Array.from(new Set(rawResults.map((result) => result.fileId)))
+    const sqlite = getSQLite()
+
+    const fileInfoById = new Map<string, { relativePath: string; indexedStatus: string | null }>()
+
+    if (fileIds.length > 0) {
+      const placeholders = fileIds.map(() => '?').join(', ')
+      const rows = sqlite
+        .prepare(
+          `
+          SELECT
+            id,
+            relative_path AS relativePath,
+            indexed_status AS indexedStatus
+          FROM files
+          WHERE id IN (${placeholders})
+        `
+        )
+        .all(...fileIds) as Array<{ id: string; relativePath: string; indexedStatus: string | null }>
+
+      for (const row of rows) {
+        fileInfoById.set(row.id, { relativePath: row.relativePath, indexedStatus: row.indexedStatus })
+      }
+    }
+
+    const searchResults: SearchResult[] = rawResults.map((result) => {
+      const info = fileInfoById.get(result.fileId)
+      return {
+        fileId: result.fileId,
+        fileName: info?.relativePath ?? 'Unknown',
+        text: result.text,
+        score: result.score,
+        chunkIndex: result.chunkIndex,
+        isIndexed: info?.indexedStatus === 'indexed'
+      }
+    })
 
     console.log(`[Search] Found ${searchResults.length} results`)
     return searchResults

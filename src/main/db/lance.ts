@@ -1,7 +1,10 @@
 import * as lancedb from '@lancedb/lancedb'
 import { ensureLanceDirectory } from '../brain-path'
+import { createLogger } from '../../shared/logger'
 
 let connection: lancedb.Connection | null = null
+
+const log = createLogger('main/db/lance')
 
 export async function initLanceDB(): Promise<lancedb.Connection> {
   if (connection) return connection
@@ -9,7 +12,7 @@ export async function initLanceDB(): Promise<lancedb.Connection> {
   const lanceDir = ensureLanceDirectory()
   connection = await lancedb.connect(lanceDir)
 
-  console.log('[LanceDB] Connected at:', lanceDir)
+  log.info('Connected', { path: lanceDir })
   return connection
 }
 
@@ -28,12 +31,13 @@ export async function closeLanceDB(): Promise<void> {
     if (typeof conn.close === 'function') {
       try {
         await conn.close()
-        console.log('[LanceDB] Connection properly closed')
+        log.info('Connection properly closed')
       } catch (error) {
-        console.warn('[LanceDB] Error during close:', error)
+        log.warn('Error during close', { error })
       }
     }
     connection = null
-    console.log('[LanceDB] Connection released')
+    log.info('Connection released')
   }
 }
+
