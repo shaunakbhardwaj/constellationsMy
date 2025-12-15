@@ -14,8 +14,8 @@ vi.mock('../../llm', () => ({
 }))
 
 // Import after mocking
-import { GuidanceProcessor } from '../guidance'
-import type { PlanStep, ExecutionPlan } from '../types'
+import { GuidanceProcessor } from './guidance'
+import type { PlanStep, ExecutionPlan } from './types'
 
 describe('GuidanceProcessor', () => {
   let processor: GuidanceProcessor
@@ -117,6 +117,7 @@ describe('GuidanceProcessor', () => {
     it('should mark current step as skipped', () => {
       const plan: ExecutionPlan = {
         goalId: 'goal-1',
+        goalText: 'goal',
         steps: [
           createMockStep('step_1', 'completed'),
           createMockStep('step_2', 'pending'),
@@ -137,6 +138,7 @@ describe('GuidanceProcessor', () => {
     it('should insert new steps after specified index', () => {
       const plan: ExecutionPlan = {
         goalId: 'goal-1',
+        goalText: 'goal',
         steps: [
           createMockStep('step_1'),
           createMockStep('step_3')
@@ -156,6 +158,7 @@ describe('GuidanceProcessor', () => {
     it('should renumber step orders correctly', () => {
       const plan: ExecutionPlan = {
         goalId: 'goal-1',
+        goalText: 'goal',
         steps: [
           { ...createMockStep('step_1'), order: 1 },
           { ...createMockStep('step_2'), order: 2 }

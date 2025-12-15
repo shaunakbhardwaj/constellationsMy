@@ -109,6 +109,7 @@ export interface ToolParameter {
  */
 export interface ExecutionPlan {
   goalId: string
+  goalText: string
   steps: PlanStep[]
   createdAt: number
   revisedAt?: number

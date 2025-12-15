@@ -213,7 +213,7 @@ export class AutonomousAgent {
 
     const action = await this.guidanceProcessor.processGuidance(
       guidance,
-      this.currentPlan.goalId,
+      this.currentPlan.goalText,
       currentStep,
       remainingSteps
     )

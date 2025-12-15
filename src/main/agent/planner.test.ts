@@ -24,7 +24,7 @@ vi.mock('../../db/sqlite', () => ({
 }))
 
 // Import after mocking
-import { AgentPlanner } from '../planner'
+import { AgentPlanner } from './planner'
 
 describe('AgentPlanner', () => {
   let planner: AgentPlanner
@@ -42,6 +42,7 @@ describe('AgentPlanner', () => {
 
       expect(plan).toBeDefined()
       expect(plan.goalId).toBe('goal-1')
+      expect(plan.goalText).toBe('Find information about sales')
       expect(plan.steps).toHaveLength(3)
       expect(plan.steps[0].tool).toBe('search')
       expect(plan.steps[1].tool).toBe('analyze')
@@ -90,6 +91,7 @@ describe('AgentPlanner', () => {
   describe('revisePlan', () => {
     const basePlan = {
       goalId: 'goal-1',
+      goalText: 'Original goal text',
       steps: [
         { id: 'step_1', order: 1, tool: 'search', params: {}, description: 'Search', status: 'completed' as const },
         { id: 'step_2', order: 2, tool: 'analyze', params: {}, description: 'Analyze', status: 'pending' as const }

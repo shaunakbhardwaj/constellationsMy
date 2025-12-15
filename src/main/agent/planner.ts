@@ -64,6 +64,7 @@ export class AgentPlanner {
 
       return {
         goalId,
+        goalText,
         steps: planSteps,
         createdAt: Date.now()
       }
@@ -90,7 +91,7 @@ export class AgentPlanner {
 
     try {
       const prompt = getRevisionPrompt(
-        plan.goalId,
+        plan.goalText,
         plan.steps.map(s => ({ id: s.id, tool: s.tool, description: s.description })),
         completedStepIds,
         guidance
@@ -145,6 +146,7 @@ export class AgentPlanner {
 
     return {
       goalId,
+      goalText,
       steps,
       createdAt: Date.now()
     }
