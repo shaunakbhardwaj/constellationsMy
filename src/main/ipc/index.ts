@@ -13,6 +13,8 @@ import { registerConfigHandlers } from './handlers/config'
 import { registerLogHandlers } from './handlers/logs'
 import { registerGoalsHandlers } from './handlers/goals'
 import { registerAgentHandlers } from './handlers/agent'
+import { registerLLMHandlers } from './handlers/llm'
+import { registerProgressHandlers } from './handlers/progress'
 
 /**
  * Register all IPC handlers with the main process
@@ -25,4 +27,7 @@ export function registerAllHandlers(ipcMain: IpcMain): void {
   registerLogHandlers(ipcMain)
   registerGoalsHandlers()
   registerAgentHandlers()
+  registerLLMHandlers()
+  registerProgressHandlers()
 }
+

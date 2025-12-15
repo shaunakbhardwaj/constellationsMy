@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import type { AppConfig } from '../../../../shared/types'
+import type { AppConfig, LLMModel } from '../../../../shared/types'
 
 // Available embedding models
 const EMBEDDING_MODELS = [
@@ -15,25 +15,46 @@ export function SettingsPanel(): React.JSX.Element {
     const [saving, setSaving] = useState(false)
     const [saveMessage, setSaveMessage] = useState<string | null>(null)
 
-    // API key states (not stored in config, managed separately)
+    // LLM state
+    const [llmModels, setLlmModels] = useState<LLMModel[]>([])
+    const [selectedLLMModel, setSelectedLLMModel] = useState('')
+    const [hasLLMKey, setHasLLMKey] = useState(false)
+    const [llmReady, setLlmReady] = useState(false)
+    const [testingLLM, setTestingLLM] = useState(false)
+
+    // API key states
     const [openRouterKey, setOpenRouterKey] = useState('')
     const [openAiKey, setOpenAiKey] = useState('')
-    const [hasOpenRouterKey, setHasOpenRouterKey] = useState(false)
     const [hasOpenAiKey, setHasOpenAiKey] = useState(false)
 
     // Local state for editing
     const [selectedModel, setSelectedModel] = useState('')
 
-    // Load config on mount
+    // Load config and LLM info on mount
     useEffect(() => {
-        const loadConfig = async (): Promise<void> => {
+        const loadData = async (): Promise<void> => {
             try {
-                const response = await window.api.getConfig()
-                if (response.success && response.config) {
-                    setConfig(response.config)
-                    setSelectedModel(response.config.embedding.model)
+                const [configResponse, modelsResponse, llmConfigResponse] = await Promise.all([
+                    window.api.getConfig(),
+                    window.api.getLLMModels(),
+                    window.api.getLLMConfig()
+                ])
+
+                if (configResponse.success && configResponse.config) {
+                    setConfig(configResponse.config)
+                    setSelectedModel(configResponse.config.embedding.model)
                 } else {
-                    throw new Error(response.error ?? 'Failed to load config')
+                    throw new Error(configResponse.error ?? 'Failed to load config')
+                }
+
+                if (modelsResponse.success && modelsResponse.models) {
+                    setLlmModels(modelsResponse.models)
+                }
+
+                if (llmConfigResponse.success && llmConfigResponse.config) {
+                    setHasLLMKey(llmConfigResponse.config.hasApiKey)
+                    setLlmReady(llmConfigResponse.config.isReady)
+                    setSelectedLLMModel(llmConfigResponse.config.model)
                 }
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Failed to load settings')
@@ -41,7 +62,7 @@ export function SettingsPanel(): React.JSX.Element {
                 setLoading(false)
             }
         }
-        void loadConfig()
+        void loadData()
     }, [])
 
     const handleSaveModel = useCallback(async () => {
@@ -57,8 +78,7 @@ export function SettingsPanel(): React.JSX.Element {
 
             if (response.success && response.config) {
                 setConfig(response.config)
-                setSaveMessage('Model updated successfully')
-                setTimeout(() => setSaveMessage(null), 3000)
+                showMessage('Embedding model updated successfully')
             } else {
                 throw new Error(response.error ?? 'Failed to save')
             }
@@ -69,28 +89,92 @@ export function SettingsPanel(): React.JSX.Element {
         }
     }, [config, selectedModel])
 
-    const handleSaveApiKey = useCallback(
-        async (provider: 'openrouter' | 'openai') => {
-            const key = provider === 'openrouter' ? openRouterKey : openAiKey
-            if (!key.trim()) return
+    const showMessage = (msg: string) => {
+        setSaveMessage(msg)
+        setTimeout(() => setSaveMessage(null), 3000)
+    }
 
-            // In a real implementation, this would call a secure API key storage handler
-            // For now, we just show a placeholder success message
-            console.log(`Would save ${provider} API key:`, key.substring(0, 8) + '...')
+    const handleSaveOpenRouterKey = useCallback(async () => {
+        if (!openRouterKey.trim()) return
 
-            if (provider === 'openrouter') {
-                setHasOpenRouterKey(true)
+        setSaving(true)
+        try {
+            const response = await window.api.setLLMApiKey(openRouterKey)
+            if (response.success) {
+                setHasLLMKey(true)
+                setLlmReady(true)
                 setOpenRouterKey('')
+                showMessage('OpenRouter API key saved successfully')
             } else {
-                setHasOpenAiKey(true)
-                setOpenAiKey('')
+                setError(response.error ?? 'Failed to save API key')
             }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to save API key')
+        } finally {
+            setSaving(false)
+        }
+    }, [openRouterKey])
 
-            setSaveMessage(`${provider === 'openrouter' ? 'OpenRouter' : 'OpenAI'} API key saved`)
-            setTimeout(() => setSaveMessage(null), 3000)
-        },
-        [openRouterKey, openAiKey]
-    )
+    const handleClearOpenRouterKey = useCallback(async () => {
+        setSaving(true)
+        try {
+            const response = await window.api.clearLLMApiKey()
+            if (response.success) {
+                setHasLLMKey(false)
+                setLlmReady(false)
+                showMessage('API key cleared')
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to clear API key')
+        } finally {
+            setSaving(false)
+        }
+    }, [])
+
+    const handleSaveLLMModel = useCallback(async () => {
+        setSaving(true)
+        try {
+            const response = await window.api.setLLMModel(selectedLLMModel)
+            if (response.success) {
+                showMessage('LLM model updated')
+            } else {
+                setError(response.error ?? 'Failed to set model')
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to set model')
+        } finally {
+            setSaving(false)
+        }
+    }, [selectedLLMModel])
+
+    const handleTestLLM = useCallback(async () => {
+        if (!llmReady) return
+
+        setTestingLLM(true)
+        setError(null)
+
+        try {
+            const response = await window.api.testLLM()
+            if (response.success) {
+                showMessage(`LLM test successful: "${response.response}"`)
+            } else {
+                setError(response.error ?? 'LLM test failed')
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'LLM test failed')
+        } finally {
+            setTestingLLM(false)
+        }
+    }, [llmReady])
+
+    const handleSaveOpenAiKey = useCallback(async () => {
+        if (!openAiKey.trim()) return
+        // Placeholder - OpenAI key storage not yet implemented
+        console.log('Would save OpenAI key:', openAiKey.substring(0, 8) + '...')
+        setHasOpenAiKey(true)
+        setOpenAiKey('')
+        showMessage('OpenAI API key saved')
+    }, [openAiKey])
 
     if (loading) {
         return (
@@ -113,7 +197,18 @@ export function SettingsPanel(): React.JSX.Element {
                 <p className="page-subtitle">Configure your instance</p>
             </div>
 
-            {error && <div className="search-error">{error}</div>}
+            {error && (
+                <div className="search-error" style={{ marginBottom: '16px' }}>
+                    {error}
+                    <button
+                        type="button"
+                        onClick={() => setError(null)}
+                        style={{ marginLeft: '12px', background: 'none', border: 'none', cursor: 'pointer', opacity: 0.7 }}
+                    >
+                        ×
+                    </button>
+                </div>
+            )}
             {saveMessage && (
                 <div
                     style={{
@@ -128,6 +223,101 @@ export function SettingsPanel(): React.JSX.Element {
                     {saveMessage}
                 </div>
             )}
+
+            {/* LLM Configuration Section */}
+            <div className="settings-section">
+                <div className="settings-section-header">
+                    <div className="settings-section-title">LLM (Language Model)</div>
+                    <span
+                        style={{
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: 500,
+                            background: llmReady ? 'var(--success-light)' : 'var(--bg-tertiary)',
+                            color: llmReady ? 'var(--success)' : 'var(--text-tertiary)'
+                        }}
+                    >
+                        {llmReady ? 'Ready' : 'Not Configured'}
+                    </span>
+                </div>
+                <div className="settings-row">
+                    <div>
+                        <div className="settings-label">OpenRouter API Key</div>
+                        <div className="settings-help">Required for autonomous agent features</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {hasLLMKey ? (
+                            <>
+                                <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>sk-or-••••••••</span>
+                                <button className="btn-ghost" onClick={handleClearOpenRouterKey} disabled={saving} type="button">
+                                    Clear
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <input
+                                    type="password"
+                                    className="settings-input"
+                                    placeholder="sk-or-..."
+                                    value={openRouterKey}
+                                    onChange={(e) => setOpenRouterKey(e.target.value)}
+                                />
+                                <button
+                                    className="settings-btn"
+                                    onClick={handleSaveOpenRouterKey}
+                                    disabled={!openRouterKey.trim() || saving}
+                                    type="button"
+                                >
+                                    Save
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </div>
+                <div className="settings-row">
+                    <div>
+                        <div className="settings-label">Model</div>
+                        <div className="settings-help">LLM model for planning and analysis</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <select
+                            className="settings-select"
+                            value={selectedLLMModel}
+                            onChange={(e) => setSelectedLLMModel(e.target.value)}
+                            disabled={!hasLLMKey}
+                        >
+                            {llmModels.map((model) => (
+                                <option key={model.id} value={model.id}>
+                                    {model.name} ({model.provider})
+                                </option>
+                            ))}
+                        </select>
+                        <button
+                            className="settings-btn"
+                            onClick={handleSaveLLMModel}
+                            disabled={!hasLLMKey || saving}
+                            type="button"
+                        >
+                            Set
+                        </button>
+                    </div>
+                </div>
+                <div className="settings-row">
+                    <div>
+                        <div className="settings-label">Test Connection</div>
+                        <div className="settings-help">Verify LLM is working</div>
+                    </div>
+                    <button
+                        className="settings-btn"
+                        onClick={handleTestLLM}
+                        disabled={!llmReady || testingLLM}
+                        type="button"
+                    >
+                        {testingLLM ? 'Testing...' : 'Test LLM'}
+                    </button>
+                </div>
+            </div>
 
             {/* Embedding Model Section */}
             <div className="settings-section">
@@ -163,35 +353,12 @@ export function SettingsPanel(): React.JSX.Element {
             {/* API Keys Section */}
             <div className="settings-section">
                 <div className="settings-section-header">
-                    <div className="settings-section-title">API Keys</div>
-                </div>
-                <div className="settings-row">
-                    <div>
-                        <div className="settings-label">OpenRouter API Key</div>
-                        <div className="settings-help">For LLM features and API embedding models</div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <input
-                            type="password"
-                            className="settings-input"
-                            placeholder={hasOpenRouterKey ? 'sk-or-••••••••' : 'sk-or-...'}
-                            value={openRouterKey}
-                            onChange={(e) => setOpenRouterKey(e.target.value)}
-                        />
-                        <button
-                            className="settings-btn"
-                            onClick={() => handleSaveApiKey('openrouter')}
-                            disabled={!openRouterKey.trim()}
-                            type="button"
-                        >
-                            Save
-                        </button>
-                    </div>
+                    <div className="settings-section-title">Other API Keys</div>
                 </div>
                 <div className="settings-row">
                     <div>
                         <div className="settings-label">OpenAI API Key</div>
-                        <div className="settings-help">Optional - for direct OpenAI access</div>
+                        <div className="settings-help">Optional - for direct OpenAI embeddings</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <input
@@ -203,7 +370,7 @@ export function SettingsPanel(): React.JSX.Element {
                         />
                         <button
                             className="settings-btn"
-                            onClick={() => handleSaveApiKey('openai')}
+                            onClick={handleSaveOpenAiKey}
                             disabled={!openAiKey.trim()}
                             type="button"
                         >

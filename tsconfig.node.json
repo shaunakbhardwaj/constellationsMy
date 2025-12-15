@@ -6,6 +6,10 @@
     "src/preload/**/*",
     "src/shared/**/*"
   ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts"
+  ],
   "compilerOptions": {
     "composite": true,
     "types": [

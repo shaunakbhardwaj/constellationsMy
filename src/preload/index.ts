@@ -172,6 +172,57 @@ const api: BrainAPI = {
     const handler = (_event: unknown, state: unknown) => callback(state as import('../shared/types').AgentState)
     electronAPI.ipcRenderer.on('agent-state-update', handler)
     return () => electronAPI.ipcRenderer.removeListener('agent-state-update', handler)
+  },
+
+  // LLM API
+  getLLMModels: async () => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('llm-get-models')
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to get models' }
+    }
+  },
+  getLLMConfig: async () => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('llm-get-config')
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to get config' }
+    }
+  },
+  setLLMApiKey: async (apiKey) => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('llm-set-api-key', apiKey)
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to set API key' }
+    }
+  },
+  clearLLMApiKey: async () => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('llm-clear-api-key')
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to clear API key' }
+    }
+  },
+  setLLMModel: async (modelId) => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('llm-set-model', modelId)
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to set model' }
+    }
+  },
+  testLLM: async () => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('llm-test')
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to test LLM' }
+    }
+  },
+
+  // Progress events
+  onScanProgress: (callback) => {
+    const handler = (_event: unknown, progress: unknown) => callback(progress as import('../shared/types').ScanProgress)
+    electronAPI.ipcRenderer.on('scan-progress', handler)
+    return () => electronAPI.ipcRenderer.removeListener('scan-progress', handler)
   }
 }
 

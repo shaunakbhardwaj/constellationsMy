@@ -1,12 +1,14 @@
 /**
  * Autonomous Agent
- * Main agent class that orchestrates goal processing
+ * Main agent class that orchestrates goal processing with LLM support
  */
 import { createLogger } from '../../shared/logger'
 import { getAgentStateManager, AgentStateManager } from './state'
 import { getGoalsService } from '../goals'
 import { getTool } from './tools'
-import type { AgentState, PlanItem, ExecutionPlan } from './types'
+import { getAgentPlanner, AgentPlanner } from './planner'
+import { getGuidanceProcessor, GuidanceProcessor } from './guidance'
+import type { AgentState, PlanItem, ExecutionPlan, PlanStep } from './types'
 
 const log = createLogger('main/agent')
 
@@ -15,11 +17,18 @@ const log = createLogger('main/agent')
  */
 export class AutonomousAgent {
   private stateManager: AgentStateManager
+  private planner: AgentPlanner
+  private guidanceProcessor: GuidanceProcessor
   private abortController: AbortController | null = null
   private isRunning = false
+  private currentPlan: ExecutionPlan | null = null
+  private currentStepIndex = 0
+  private pendingGuidance: string | null = null
 
   constructor() {
     this.stateManager = getAgentStateManager()
+    this.planner = getAgentPlanner()
+    this.guidanceProcessor = getGuidanceProcessor()
   }
 
   /**
@@ -51,6 +60,7 @@ export class AutonomousAgent {
     // Create abort controller for this run
     this.abortController = new AbortController()
     this.isRunning = true
+    this.currentStepIndex = 0
 
     // Update goal status
     goalsService.updateGoal(goalId, { status: 'in_progress' })
@@ -59,18 +69,20 @@ export class AutonomousAgent {
     // Start the agent
     this.stateManager.startGoal(goalId, goal.text)
 
-    // Create a simple plan (in Phase 4, this will use LLM)
-    const plan = this.createSimplePlan(goalId, goal.text)
-    this.stateManager.setPlan(plan.steps.map((step, i) => ({
-      id: step.id,
-      description: step.description,
-      type: step.tool as PlanItem['type'],
-      order: i
-    })))
-
-    // Execute the plan
     try {
-      await this.executePlan(plan)
+      // Create plan using LLM planner (with fallback)
+      this.currentPlan = await this.planner.createPlan(goalId, goal.text)
+
+      // Update UI with plan
+      this.stateManager.setPlan(this.currentPlan.steps.map((step, i) => ({
+        id: step.id,
+        description: step.description,
+        type: step.tool as PlanItem['type'],
+        order: i
+      })))
+
+      // Execute the plan
+      await this.executePlan()
 
       // Mark as complete
       this.stateManager.complete()
@@ -90,57 +102,29 @@ export class AutonomousAgent {
     } finally {
       this.isRunning = false
       this.abortController = null
+      this.currentPlan = null
     }
   }
 
   /**
-   * Create a simple plan without LLM (Phase 4 will use LLM planning)
+   * Execute the current plan
    */
-  private createSimplePlan(goalId: string, goalText: string): ExecutionPlan {
-    // Simple heuristic: search for relevant content, then summarize
-    const steps = [
-      {
-        id: `step-${Date.now()}-1`,
-        order: 1,
-        tool: 'search',
-        params: { query: goalText, limit: 5 },
-        description: `Search for content related to: "${goalText.substring(0, 50)}..."`,
-        status: 'pending' as const
-      },
-      {
-        id: `step-${Date.now()}-2`,
-        order: 2,
-        tool: 'analyze',
-        params: { content: 'search results', focus: 'key insights' },
-        description: 'Analyze search results for key insights',
-        status: 'pending' as const
-      },
-      {
-        id: `step-${Date.now()}-3`,
-        order: 3,
-        tool: 'summarize',
-        params: { content: 'analysis results', style: 'brief' },
-        description: 'Create summary of findings',
-        status: 'pending' as const
-      }
-    ]
+  private async executePlan(): Promise<void> {
+    if (!this.currentPlan) return
 
-    return {
-      goalId,
-      steps,
-      createdAt: Date.now()
-    }
-  }
+    let lastSearchResults: unknown = null
 
-  /**
-   * Execute an execution plan
-   */
-  private async executePlan(plan: ExecutionPlan): Promise<void> {
-    for (const step of plan.steps) {
+    for (let i = this.currentStepIndex; i < this.currentPlan.steps.length; i++) {
+      const step = this.currentPlan.steps[i]
+      this.currentStepIndex = i
+
       // Check for abort
       if (this.abortController?.signal.aborted) {
         throw new Error('Aborted')
       }
+
+      // Check for pending guidance
+      await this.handlePendingGuidance()
 
       // Check for pause
       while (this.stateManager.getState().status === 'paused') {
@@ -148,6 +132,11 @@ export class AutonomousAgent {
         if (this.abortController?.signal.aborted) {
           throw new Error('Aborted')
         }
+      }
+
+      // Skip already processed steps
+      if (step.status === 'completed' || step.status === 'skipped') {
+        continue
       }
 
       log.info('Executing step', { stepId: step.id, tool: step.tool })
@@ -159,10 +148,18 @@ export class AutonomousAgent {
       const tool = getTool(step.tool)
       if (!tool) {
         log.warn('Tool not found, skipping', { tool: step.tool })
+        step.status = 'skipped'
         continue
       }
 
-      const result = await tool.execute(step.params)
+      // Prepare params - inject previous results if needed
+      const params = this.prepareParams(step, lastSearchResults)
+      const result = await tool.execute(params)
+
+      // Store search results for subsequent steps
+      if (step.tool === 'search' && result.data) {
+        lastSearchResults = result.data
+      }
 
       // Record progress
       step.status = result.success ? 'completed' : 'failed'
@@ -172,22 +169,112 @@ export class AutonomousAgent {
         `${step.description}: ${result.success ? 'Success' : 'Failed'}`
       )
 
-      // Update remaining steps
-      const remainingSteps = plan.steps
-        .filter(s => s.status === 'pending')
-        .map((s, i) => ({
-          id: s.id,
-          description: s.description,
-          type: s.tool as PlanItem['type'],
-          order: i
-        }))
-
-      if (remainingSteps.length === 0) {
-        this.stateManager.setCurrentTask('Finishing up...')
-      }
+      // Update remaining steps in UI
+      this.updateRemainingSteps()
 
       // Small delay between steps
       await this.sleep(500)
+    }
+  }
+
+  /**
+   * Prepare step params, injecting context from previous steps
+   */
+  private prepareParams(
+    step: PlanStep,
+    lastSearchResults: unknown
+  ): Record<string, unknown> {
+    const params = { ...step.params }
+
+    // If content param references search results, inject them
+    if (params.content === 'search_results' || params.content === 'search results') {
+      if (lastSearchResults && typeof lastSearchResults === 'object') {
+        const results = (lastSearchResults as { results?: { text: string }[] }).results
+        if (results) {
+          params.content = results.map(r => r.text).join('\n\n')
+        }
+      }
+    }
+
+    return params
+  }
+
+  /**
+   * Handle any pending user guidance
+   */
+  private async handlePendingGuidance(): Promise<void> {
+    if (!this.pendingGuidance || !this.currentPlan) return
+
+    const guidance = this.pendingGuidance
+    this.pendingGuidance = null
+
+    const currentStep = this.currentPlan.steps[this.currentStepIndex] ?? null
+    const remainingSteps = this.currentPlan.steps.slice(this.currentStepIndex + 1)
+
+    const action = await this.guidanceProcessor.processGuidance(
+      guidance,
+      this.currentPlan.goalId,
+      currentStep,
+      remainingSteps
+    )
+
+    log.info('Guidance action', { action: action.action, reason: action.reason })
+
+    this.stateManager.addProgress(`Guidance: ${action.reason}`, 'verify')
+
+    switch (action.action) {
+      case 'pause':
+        this.pause()
+        break
+      case 'skip_step':
+        if (currentStep) {
+          currentStep.status = 'skipped'
+        }
+        break
+      case 'modify_plan':
+        if (action.details?.modifiedPlan) {
+          // Revise remaining steps
+          const completedSteps = this.currentPlan.steps
+            .slice(0, this.currentStepIndex + 1)
+            .map(s => s.id)
+          this.currentPlan = await this.planner.revisePlan(
+            this.currentPlan,
+            guidance,
+            completedSteps
+          )
+          this.updateRemainingSteps()
+        }
+        break
+      case 'add_step':
+        if (action.details?.newSteps) {
+          this.currentPlan = this.guidanceProcessor.addSteps(
+            this.currentPlan,
+            action.details.newSteps,
+            this.currentStepIndex
+          )
+          this.updateRemainingSteps()
+        }
+        break
+    }
+  }
+
+  /**
+   * Update UI with remaining steps
+   */
+  private updateRemainingSteps(): void {
+    if (!this.currentPlan) return
+
+    const remainingSteps = this.currentPlan.steps
+      .filter(s => s.status === 'pending')
+      .map((s, i) => ({
+        id: s.id,
+        description: s.description,
+        type: s.tool as PlanItem['type'],
+        order: i
+      }))
+
+    if (remainingSteps.length === 0) {
+      this.stateManager.setCurrentTask('Finishing up...')
     }
   }
 
@@ -216,16 +303,23 @@ export class AutonomousAgent {
     }
     this.stateManager.reset()
     this.isRunning = false
+    this.currentPlan = null
     log.info('Agent stopped')
   }
 
   /**
-   * Send user guidance (placeholder for Phase 4)
+   * Send user guidance to modify execution
    */
   async sendGuidance(guidance: string): Promise<void> {
-    log.info('Guidance received (placeholder)', { guidance })
-    // In Phase 4, this will modify the plan using LLM
-    this.stateManager.addProgress(`User guidance: "${guidance.substring(0, 50)}..."`, 'verify')
+    log.info('Guidance received', { guidance: guidance.substring(0, 50) })
+
+    if (!this.isRunning) {
+      log.warn('Agent not running, ignoring guidance')
+      return
+    }
+
+    // Queue guidance for processing
+    this.pendingGuidance = guidance
   }
 
   /**

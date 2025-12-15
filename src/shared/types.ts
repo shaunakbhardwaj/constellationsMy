@@ -129,6 +129,17 @@ export interface BrainAPI {
   stopAgent: () => Promise<{ success: boolean; error?: string }>
   sendAgentGuidance: (guidance: string) => Promise<{ success: boolean; error?: string }>
   onAgentStateChange: (callback: (state: AgentState) => void) => () => void
+
+  // LLM API
+  getLLMModels: () => Promise<LLMModelsResponse>
+  getLLMConfig: () => Promise<LLMConfigResponse>
+  setLLMApiKey: (apiKey: string) => Promise<{ success: boolean; error?: string }>
+  clearLLMApiKey: () => Promise<{ success: boolean; error?: string }>
+  setLLMModel: (modelId: string) => Promise<{ success: boolean; error?: string }>
+  testLLM: () => Promise<{ success: boolean; response?: string; error?: string }>
+
+  // Progress events
+  onScanProgress: (callback: (progress: ScanProgress) => void) => () => void
 }
 
 /**
@@ -206,4 +217,49 @@ export interface ConfigResponse {
   success: boolean
   config?: AppConfig
   error?: string
+}
+
+/**
+ * LLM types for OpenRouter integration
+ */
+export interface LLMModel {
+  id: string
+  name: string
+  provider: string
+  contextLength: number
+  pricing: {
+    prompt: number
+    completion: number
+  }
+}
+
+export interface LLMConfig {
+  hasApiKey: boolean
+  model: string
+  isReady: boolean
+}
+
+export interface LLMModelsResponse {
+  success: boolean
+  models?: LLMModel[]
+  error?: string
+}
+
+export interface LLMConfigResponse {
+  success: boolean
+  config?: LLMConfig
+  error?: string
+}
+
+/**
+ * Scanner progress for indexing feedback
+ */
+export interface ScanProgress {
+  phase: 'scanning' | 'indexing' | 'complete'
+  filesScanned: number
+  filesTotal: number
+  currentFile?: string
+  newFiles: number
+  updatedFiles: number
+  deletedFiles: number
 }

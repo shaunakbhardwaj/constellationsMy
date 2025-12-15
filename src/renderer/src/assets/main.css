@@ -476,16 +476,17 @@ body {
 
 .search-input-wrapper {
   position: relative;
+  display: flex;
+  align-items: center;
 }
 
-.search-icon {
+.search-input-wrapper>svg {
   position: absolute;
   left: 16px;
-  top: 50%;
-  transform: translateY(-50%);
   width: 18px;
   height: 18px;
   color: var(--text-tertiary);
+  pointer-events: none;
 }
 
 .search-input-large {
@@ -548,15 +549,42 @@ body {
 
 .search-empty {
   text-align: center;
-  padding: 48px 24px;
+  padding: 60px 24px;
   color: var(--text-tertiary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .search-empty-icon {
-  width: 48px;
-  height: 48px;
-  margin: 0 auto 16px;
-  opacity: 0.5;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 20px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-empty-icon svg {
+  width: 28px;
+  height: 28px;
+  color: var(--text-tertiary);
+  opacity: 0.6;
+}
+
+.search-empty p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.search-empty p:first-of-type {
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
 .search-error {
@@ -1123,4 +1151,242 @@ body {
     width: 100%;
     min-width: unset;
   }
+}
+
+/* ========== TOAST NOTIFICATIONS ========== */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  z-index: 1000;
+  max-width: 360px;
+}
+
+.toast {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  animation: slideIn 0.3s ease;
+  overflow: hidden;
+}
+
+.toast-info {
+  border-left: 3px solid var(--text-primary);
+}
+
+.toast-success {
+  border-left: 3px solid var(--success);
+}
+
+.toast-warning {
+  border-left: 3px solid var(--warning);
+}
+
+.toast-error {
+  border-left: 3px solid var(--error);
+}
+
+.toast-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  gap: 12px;
+}
+
+.toast-message {
+  font-size: 13px;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0;
+  line-height: 1;
+  opacity: 0.6;
+  transition: opacity 0.1s;
+}
+
+.toast-close:hover {
+  opacity: 1;
+}
+
+.toast-progress {
+  height: 3px;
+  background: var(--bg-tertiary);
+}
+
+.toast-progress-bar {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+/* ========== SEARCH HIGHLIGHTING ========== */
+.search-highlight {
+  background: var(--warning-light);
+  color: var(--text-primary);
+  padding: 1px 2px;
+  border-radius: 2px;
+  font-weight: 500;
+}
+
+/* ========== MICRO-ANIMATIONS ========== */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes checkmark {
+  0% {
+    transform: scale(0);
+  }
+
+  50% {
+    transform: scale(1.2);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Panel transitions */
+.panel {
+  animation: fadeIn 0.2s ease;
+}
+
+/* Goal completion animation */
+.goal-item.completed .goal-checkbox svg {
+  animation: checkmark 0.3s ease;
+}
+
+/* Progress item animation */
+.progress-item {
+  animation: slideIn 0.3s ease;
+}
+
+/* Status spinner pulse when active */
+.status-spinner:not(.idle) {
+  animation: spin 1.5s linear infinite;
+}
+
+/* Result card hover */
+.result-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.result-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Button micro-interactions */
+.btn-primary,
+.btn-secondary,
+.btn-ghost {
+  transition: all 0.15s ease;
+}
+
+.btn-primary:active,
+.btn-secondary:active {
+  transform: scale(0.98);
+}
+
+/* Sidebar nav item transitions */
+.nav-item {
+  transition: all 0.15s ease;
+}
+
+/* Loading skeleton */
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-secondary) 50%, var(--bg-tertiary) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ========== KEYBOARD HINTS ========== */
+.keyboard-hint {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  font-family: 'SF Mono', 'Monaco', monospace;
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+/* ========== ERROR STATES ========== */
+.error-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-secondary);
+}
+
+.error-state-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 16px;
+  color: var(--error);
+}
+
+.error-state-message {
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.error-state-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
