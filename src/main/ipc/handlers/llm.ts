@@ -1,26 +1,37 @@
 /**
  * IPC Handlers for LLM Configuration
+ *
+ * Handles API key storage, model selection, and LLM testing.
  */
 import { ipcMain } from 'electron'
-import { safeStorage } from 'electron'
 import { getLLMService } from '../../llm'
 import { getOpenRouterClient } from '../../llm/openrouter'
-import { DEFAULT_LLM_MODELS } from '../../llm/types'
+import {
+  saveApiKey,
+  getApiKey,
+  hasApiKey,
+  clearApiKey,
+  getApiKeyStatus,
+  type ApiKeyProvider
+} from '../../config/secrets'
+import { OPENROUTER_MODELS } from '../../models/llm-openrouter'
+import { GEMINI_MODELS } from '../../models/llm-gemini'
 import { createLogger } from '../../../shared/logger'
 
 const log = createLogger('ipc/llm')
 
-// Store API key in memory (encrypted in safeStorage when available)
-let encryptedApiKey: Buffer | null = null
-
 export function registerLLMHandlers(): void {
   const llmService = getLLMService()
-  const client = getOpenRouterClient()
+  const openRouterClient = getOpenRouterClient()
 
-  // Get available LLM models
-  ipcMain.handle('llm-get-models', async () => {
+  // Get available LLM models for a provider
+  ipcMain.handle('llm-get-models', async (_, provider?: 'openrouter' | 'gemini') => {
     try {
-      return { success: true, models: DEFAULT_LLM_MODELS }
+      if (provider === 'gemini') {
+        return { success: true, models: GEMINI_MODELS }
+      }
+      // Default to OpenRouter
+      return { success: true, models: OPENROUTER_MODELS }
     } catch (error) {
       log.error('llm-get-models failed', { error })
       return { success: false, error: 'Failed to get models' }
@@ -33,7 +44,8 @@ export function registerLLMHandlers(): void {
       return {
         success: true,
         config: {
-          hasApiKey: client.hasApiKey(),
+          hasOpenRouterKey: hasApiKey('openrouter'),
+          hasGeminiKey: hasApiKey('gemini'),
           model: llmService.getModel(),
           isReady: llmService.isReady()
         }
@@ -44,46 +56,66 @@ export function registerLLMHandlers(): void {
     }
   })
 
-  // Set API key (securely stored)
-  ipcMain.handle('llm-set-api-key', async (_, apiKey: string) => {
+  // Get API key status for all providers
+  ipcMain.handle('llm-get-key-status', async () => {
     try {
-      // Validate key first
-      client.setApiKey(apiKey)
-      const isValid = await client.validateApiKey()
-
-      if (!isValid) {
-        return { success: false, error: 'Invalid API key' }
-      }
-
-      // Store encrypted if safeStorage is available
-      if (safeStorage.isEncryptionAvailable()) {
-        encryptedApiKey = safeStorage.encryptString(apiKey)
-        log.info('API key stored securely')
-      } else {
-        log.warn('safeStorage not available, key stored in memory only')
-      }
-
-      return { success: true }
+      return { success: true, status: getApiKeyStatus() }
     } catch (error) {
-      log.error('llm-set-api-key failed', { error })
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to set API key'
-      }
+      log.error('llm-get-key-status failed', { error })
+      return { success: false, error: 'Failed to get key status' }
     }
   })
 
+  // Set API key (securely stored)
+  ipcMain.handle(
+    'llm-set-api-key',
+    async (_, apiKey: string, provider: ApiKeyProvider = 'openrouter') => {
+      try {
+        // For OpenRouter, validate key first
+        if (provider === 'openrouter') {
+          openRouterClient.setApiKey(apiKey)
+          const isValid = await openRouterClient.validateApiKey()
+
+          if (!isValid) {
+            openRouterClient.setApiKey('') // Clear invalid key from client
+            return { success: false, error: 'Invalid API key' }
+          }
+        }
+
+        // Store securely
+        saveApiKey(provider, apiKey)
+
+        // For OpenRouter, also set on the client
+        if (provider === 'openrouter') {
+          openRouterClient.setApiKey(apiKey)
+        }
+
+        log.info('API key saved', { provider })
+        return { success: true }
+      } catch (error) {
+        log.error('llm-set-api-key failed', { error, provider })
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to set API key'
+        }
+      }
+    }
+  )
+
   // Clear API key
-  ipcMain.handle('llm-clear-api-key', async () => {
+  ipcMain.handle('llm-clear-api-key', async (_, provider: ApiKeyProvider = 'openrouter') => {
     try {
-      encryptedApiKey = null
-      // Create new client instance to clear key
-      const newClient = getOpenRouterClient()
-      newClient.setApiKey('')
-      log.info('API key cleared')
+      clearApiKey(provider)
+
+      // For OpenRouter, also clear from client
+      if (provider === 'openrouter') {
+        openRouterClient.setApiKey('')
+      }
+
+      log.info('API key cleared', { provider })
       return { success: true }
     } catch (error) {
-      log.error('llm-clear-api-key failed', { error })
+      log.error('llm-clear-api-key failed', { error, provider })
       return { success: false, error: 'Failed to clear API key' }
     }
   })
@@ -107,9 +139,7 @@ export function registerLLMHandlers(): void {
         return { success: false, error: 'LLM not configured' }
       }
 
-      const response = await llmService.chat([
-        { role: 'user', content: 'Say "Hello" in one word.' }
-      ])
+      const response = await llmService.chat([{ role: 'user', content: 'Say "Hello" in one word.' }])
 
       return { success: true, response }
     } catch (error) {
@@ -125,17 +155,13 @@ export function registerLLMHandlers(): void {
 }
 
 /**
- * Load API key from secure storage on startup
+ * Initialize LLM with stored API key (call on app startup)
  */
-export function loadStoredApiKey(): void {
-  if (encryptedApiKey && safeStorage.isEncryptionAvailable()) {
-    try {
-      const apiKey = safeStorage.decryptString(encryptedApiKey)
-      const client = getOpenRouterClient()
-      client.setApiKey(apiKey)
-      log.info('API key loaded from secure storage')
-    } catch (error) {
-      log.error('Failed to load API key from secure storage', { error })
-    }
+export function initializeLLMFromStorage(): void {
+  const openRouterKey = getApiKey('openrouter')
+  if (openRouterKey) {
+    const client = getOpenRouterClient()
+    client.setApiKey(openRouterKey)
+    log.info('OpenRouter API key loaded from secure storage')
   }
 }

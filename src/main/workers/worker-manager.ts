@@ -6,6 +6,8 @@ import { Worker } from 'node:worker_threads'
 import { v4 as uuidv4 } from 'uuid'
 import { createLogger } from '../../shared/logger'
 import { generateEmbedding, initEmbeddingModel } from '../ai/embeddings'
+import { getTransformersCacheDir } from '../ai/model-manager'
+import { getConfig } from '../config'
 
 // electron-vite automatically bundles this worker with ?modulePath suffix
 // @see https://electron-vite.org/guide/dev.html#worker-threads
@@ -31,10 +33,11 @@ let initPromise: Promise<void> | null = null
 const pendingRequests = new Map<string, PendingRequest>()
 let useWorker = true
 let lastFailure: unknown = null
+let workerModelId: string | null = null
 
 async function generateEmbeddingsInline(chunks: string[]): Promise<number[][]> {
   log.info('inline embedding fallback start', { chunks: chunks.length, lastFailure })
-  await initEmbeddingModel()
+  await initEmbeddingModel(getConfig().embedding.model)
   const vectors: number[][] = []
   for (const chunk of chunks) {
     vectors.push(await generateEmbedding(chunk))
@@ -45,7 +48,13 @@ async function generateEmbeddingsInline(chunks: string[]): Promise<number[][]> {
 
 async function ensureWorker(): Promise<void> {
   if (!useWorker) return
-  if (worker && isInitialized) return
+  const desiredModelId = getConfig().embedding.model
+  const cacheDir = getTransformersCacheDir()
+
+  if (worker && isInitialized) {
+    if (workerModelId === desiredModelId) return
+    await disposeIngestionWorker()
+  }
   if (initPromise) return initPromise
 
   // workerPath is provided by electron-vite's ?modulePath import
@@ -60,6 +69,7 @@ async function ensureWorker(): Promise<void> {
         switch (message.type) {
           case 'init-complete':
             isInitialized = true
+            workerModelId = desiredModelId
             resolve()
             break
 
@@ -91,6 +101,7 @@ async function ensureWorker(): Promise<void> {
           case 'disposed':
             worker = null
             isInitialized = false
+            workerModelId = null
             break
         }
       })
@@ -117,7 +128,7 @@ async function ensureWorker(): Promise<void> {
         useWorker = false
       })
 
-      worker.postMessage({ type: 'init' })
+      worker.postMessage({ type: 'init', modelId: desiredModelId, cacheDir })
     } catch (error) {
       lastFailure = error
       useWorker = false
@@ -172,6 +183,7 @@ export async function disposeIngestionWorker(): Promise<void> {
       worker = null
       isInitialized = false
       initPromise = null
+      workerModelId = null
       resolve()
     }, 5000)
 
@@ -181,6 +193,7 @@ export async function disposeIngestionWorker(): Promise<void> {
         worker = null
         isInitialized = false
         initPromise = null
+        workerModelId = null
         resolve()
       }
     })

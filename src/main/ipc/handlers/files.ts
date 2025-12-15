@@ -9,12 +9,17 @@ import { promises as fs } from 'fs'
 import { join, parse, relative, normalize, resolve, isAbsolute } from 'path'
 import { getBrainDirectory } from '../../brain-path'
 import { processFile } from '../../ingestion'
+import { getLanceDB, getSQLite } from '../../db'
 import { createLogger } from '../../../shared/logger'
 
 const log = createLogger('ipc/files')
 
 // Security: Maximum rename attempts to prevent infinite loops
 const MAX_RENAME_ATTEMPTS = 1000
+const DOCUMENT_TABLE = 'documents'
+
+// UUID v4 validation regex
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 type FileTransferPayload = {
   source: string
@@ -40,6 +45,10 @@ function isPathSafe(filePath: string, allowedDirs: string[]): boolean {
   }
 
   return false
+}
+
+function isValidUUID(id: string): boolean {
+  return UUID_REGEX.test(id)
 }
 
 /**
@@ -199,6 +208,85 @@ export function registerFileHandlers(ipcMain: IpcMain): void {
         success: false,
         requestId,
         error: error instanceof Error ? error.message : 'Unknown file import error'
+      }
+    }
+  })
+
+  ipcMain.handle('delete-file', async (_, fileId: string) => {
+    const startedAt = Date.now()
+    log.info('delete-file start', { fileId })
+
+    try {
+      if (typeof fileId !== 'string' || fileId.trim().length === 0) {
+        return { success: false, error: 'Invalid file id' }
+      }
+
+      if (!isValidUUID(fileId)) {
+        return { success: false, error: 'Invalid file id' }
+      }
+
+      const db = getSQLite()
+      const file = db
+        .prepare<
+          [string],
+          { id: string; path: string; relativePath: string; indexedStatus: string | null }
+        >(
+          `
+          SELECT
+            id,
+            path,
+            relative_path AS relativePath,
+            indexed_status AS indexedStatus
+          FROM files
+          WHERE id = ?
+        `
+        )
+        .get(fileId)
+
+      if (!file) {
+        return { success: false, error: 'File not found' }
+      }
+
+      if (file.indexedStatus === 'processing') {
+        return { success: false, error: 'File is currently being processed' }
+      }
+
+      const brainDirectory = getBrainDirectory()
+      if (!isPathSafe(file.path, [brainDirectory])) {
+        log.warn('delete-file blocked unsafe path', { fileId, filePath: file.path, brainDirectory })
+        return { success: false, error: 'Access denied' }
+      }
+
+      const lance = getLanceDB()
+      try {
+        const table = await lance.openTable(DOCUMENT_TABLE)
+        await table.delete(`file_id = '${fileId}'`)
+        log.info('delete-file deleted vectors from LanceDB', { fileId })
+      } catch (error) {
+        log.warn('delete-file could not delete vectors from LanceDB', { fileId, error })
+      }
+
+      db.prepare('DELETE FROM files WHERE id = ?').run(fileId)
+      log.info('delete-file deleted record from SQLite', { fileId })
+
+      try {
+        await fs.unlink(file.path)
+        log.info('delete-file deleted file from disk', { fileId, filePath: file.path })
+      } catch (error) {
+        const err = error as NodeJS.ErrnoException
+        if (err.code !== 'ENOENT') {
+          throw error
+        }
+        log.warn('delete-file file missing on disk (ignored)', { fileId, filePath: file.path })
+      }
+
+      log.info('delete-file success', { fileId, durationMs: Date.now() - startedAt })
+      return { success: true }
+    } catch (error) {
+      log.error('delete-file failed', { fileId, durationMs: Date.now() - startedAt, error })
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to delete file'
       }
     }
   })

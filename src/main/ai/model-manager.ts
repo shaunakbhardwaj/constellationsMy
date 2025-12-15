@@ -2,10 +2,13 @@
  * Embedding Model Manager
  *
  * Handles checking model download status and downloading models.
- * Models are cached by @xenova/transformers in ~/.cache/huggingface/hub/
+ * Models are cached by @xenova/transformers (Transformers.js) using a filesystem cache.
+ *
+ * Important: Transformers.js does NOT use the Python HF cache layout (models--.../snapshots).
+ * It stores files under keys like: <cacheDir>/<modelId>/<filename>.
  */
 
-import { existsSync } from 'fs'
+import { existsSync, readdirSync, type Dirent } from 'fs'
 import { join } from 'path'
 import { homedir } from 'os'
 import { BrowserWindow } from 'electron'
@@ -23,52 +26,122 @@ export interface EmbeddingModelStatus extends EmbeddingModelInfo {
 const downloadingModels = new Set<string>()
 
 /**
- * Get the Hugging Face cache directory
+ * Get cache directory for Transformers.js.
+ *
+ * - If `TRANSFORMERS_CACHE` is set, we use it directly.
+ * - Else if `HF_HOME` is set, we use `<HF_HOME>/hub` (matches the conventional HF layout).
+ * - Else default to `~/.cache/huggingface/hub`.
  */
-function getHFCacheDir(): string {
-  // Check for custom cache dir environment variable
-  const customCache = process.env.HF_HOME || process.env.TRANSFORMERS_CACHE
-  if (customCache) {
-    return customCache
+export function getTransformersCacheDir(): string {
+  const transformersCache = process.env.TRANSFORMERS_CACHE
+  if (transformersCache && transformersCache.trim().length > 0) {
+    return transformersCache
   }
 
-  // Default location
+  const hfHome = process.env.HF_HOME
+  if (hfHome && hfHome.trim().length > 0) {
+    return join(hfHome, 'hub')
+  }
+
   return join(homedir(), '.cache', 'huggingface', 'hub')
 }
 
 /**
- * Convert model ID to cache directory name
+ * Python HF hub layout directory name:
  * e.g., 'Xenova/all-MiniLM-L6-v2' -> 'models--Xenova--all-MiniLM-L6-v2'
  */
 function modelIdToCacheName(modelId: string): string {
   return `models--${modelId.replace('/', '--')}`
 }
 
-/**
- * Check if a specific model is downloaded
- */
-export function isModelDownloaded(modelId: string): boolean {
-  const cacheDir = getHFCacheDir()
-  const modelCacheDir = join(cacheDir, modelIdToCacheName(modelId))
+function getTransformersJsModelRoot(cacheDir: string, modelId: string): string {
+  // Transformers.js FileCache uses keys like `${modelId}/${filename}`.
+  // So the directory on disk is `${cacheDir}/${modelId}/...`
+  return join(cacheDir, modelId)
+}
 
-  // Check if the snapshots directory exists with content
-  const snapshotsDir = join(modelCacheDir, 'snapshots')
-  if (!existsSync(snapshotsDir)) {
+function hasFileWithExtension(dir: string, extension: string, maxDepth: number): boolean {
+  if (maxDepth < 0) return false
+
+  let entries: Dirent[]
+  try {
+    entries = readdirSync(dir, { withFileTypes: true, encoding: 'utf8' }) as unknown as Dirent[]
+  } catch {
     return false
   }
 
-  // Also check for model files - look for onnx files
-  try {
-    const modelDir = join(modelCacheDir, 'snapshots')
-    if (existsSync(modelDir)) {
-      // If snapshots exists and has subdirectories, model is likely downloaded
-      return true
-    }
-  } catch {
-    // Ignore errors
+  for (const entry of entries) {
+    const name = String(entry.name)
+    const fullPath = join(dir, name)
+    if (entry.isFile() && name.toLowerCase().endsWith(extension)) return true
+    if (entry.isDirectory() && hasFileWithExtension(fullPath, extension, maxDepth - 1)) return true
   }
 
-  return existsSync(snapshotsDir)
+  return false
+}
+
+/**
+ * Check if a specific model is downloaded
+ * Uses multiple detection methods for robustness
+ */
+export function isModelDownloaded(modelId: string): boolean {
+  const cacheDir = getTransformersCacheDir()
+
+  // 1) Transformers.js filesystem cache layout (preferred)
+  const transformersJsDir = getTransformersJsModelRoot(cacheDir, modelId)
+  log.debug('Checking if model is downloaded', { modelId, cacheDir, transformersJsDir })
+
+  if (existsSync(transformersJsDir)) {
+    // Fast-path common artifacts for feature-extraction.
+    const candidates = [
+      join(transformersJsDir, 'config.json'),
+      join(transformersJsDir, 'tokenizer.json'),
+      join(transformersJsDir, 'model.onnx'),
+      join(transformersJsDir, 'onnx', 'model.onnx'),
+      join(transformersJsDir, 'onnx', 'model_quantized.onnx')
+    ]
+    if (candidates.some(existsSync)) return true
+
+    // Fallback: any onnx file somewhere under the model directory.
+    if (hasFileWithExtension(transformersJsDir, '.onnx', 4)) return true
+  }
+
+  // 2) Legacy Python HF cache layout (if user manually placed models there)
+  const hfModelCacheDir = join(cacheDir, modelIdToCacheName(modelId))
+  log.debug('Checking legacy HF cache layout', { modelId, hfModelCacheDir })
+
+  // Check if the model cache directory exists at all
+  if (!existsSync(hfModelCacheDir)) {
+    log.debug('Model not found in cache', { modelId })
+    return false
+  }
+
+  // Check for snapshots directory (standard HF cache structure)
+  const snapshotsDir = join(hfModelCacheDir, 'snapshots')
+  if (existsSync(snapshotsDir)) {
+    // Check if snapshots has any content (subdirectories = model versions)
+    try {
+      const snapshots = readdirSync(snapshotsDir)
+      if (snapshots.length > 0) {
+        log.debug('Model has snapshots, considering downloaded', { modelId, snapshotCount: snapshots.length })
+        return true
+      }
+    } catch (err) {
+      log.warn('Error reading snapshots directory', { hfModelCacheDir, err })
+    }
+  }
+
+  // Fallback: Check for common model files directly in blobs or refs
+  const blobsDir = join(hfModelCacheDir, 'blobs')
+  const refsDir = join(hfModelCacheDir, 'refs')
+  
+  if (existsSync(blobsDir) || existsSync(refsDir)) {
+    log.debug('Model has blobs/refs directory, considering downloaded', { modelId })
+    return true
+  }
+
+  log.debug('Model not found in cache', { modelId })
+  return false
 }
 
 /**
@@ -113,13 +186,13 @@ export async function downloadEmbeddingModel(
     const { pipeline, env } = await import('@xenova/transformers')
 
     // Configure specific cache directory to ensure we know where it is
-    env.cacheDir = getHFCacheDir()
-    env.allowLocalModels = false // Force check for updates
+    env.cacheDir = getTransformersCacheDir()
+    env.allowLocalModels = true
 
     // Create progress callback
     let lastProgress = 0
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const progressCallback = (progress: any) => {
+    const progressCallback = (progress: any): void => {
       // The progress object structure can vary depending on transformers version and response
       // It usually has { status: string, name: string, file: string, progress?: number, loaded?: number, total?: number }
       
@@ -127,7 +200,11 @@ export async function downloadEmbeddingModel(
       
       if (progress.status === 'progress' && progress.progress !== undefined) {
          percent = Math.round(progress.progress)
-      } else if (progress.status === 'progress' && progress.loaded !== undefined && progress.total !== undefined) {
+      } else if (
+        progress.status === 'progress' &&
+        progress.loaded !== undefined &&
+        progress.total !== undefined
+      ) {
          percent = Math.round((progress.loaded / progress.total) * 100)
       } else if (progress.status === 'initiate') {
          percent = 0

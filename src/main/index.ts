@@ -10,6 +10,8 @@ import { initWatcher, closeWatcher } from './watcher'
 import { disposeIngestionWorker } from './workers/worker-manager'
 import { registerAllHandlers } from './ipc'
 import { createLogger } from '../shared/logger'
+import { loadApiKeys } from './config/secrets'
+import { initializeLLMFromStorage } from './ipc/handlers/llm'
 
 // Security: Allowed protocols for external URLs
 const ALLOWED_PROTOCOLS = ['https:', 'http:']
@@ -100,6 +102,10 @@ app.whenReady().then(async () => {
   try {
     await initDatabases()
     // Worker initializes lazily on first use, no explicit init needed
+
+    // Load API keys from secure storage
+    loadApiKeys()
+    initializeLLMFromStorage()
 
     const brainDirectory = getBrainDirectory()
     log.info('startup: ensured brain directory + scan/watch', { brainDirectory })

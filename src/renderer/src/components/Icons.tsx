@@ -122,6 +122,18 @@ export function RefreshIcon(): React.JSX.Element {
     )
 }
 
+export function TrashIcon(): React.JSX.Element {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+            <path d="M3 6h18" />
+            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            <path d="M6 6l1 15a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-15" />
+            <path d="M10 11v7" />
+            <path d="M14 11v7" />
+        </svg>
+    )
+}
+
 // Helper to get file icon based on extension
 export function getFileIcon(filename: string): React.JSX.Element {
     const ext = filename.split('.').pop()?.toLowerCase() || ''

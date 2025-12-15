@@ -109,6 +109,7 @@ export interface BrainAPI {
   importFiles: (request: string[] | ImportFilesRequest) => Promise<FileTransferResponse>
   fetchBrainData: () => Promise<BrainDataResponse>
   searchBrain: (query: string) => Promise<SearchResponse>
+  deleteFile: (fileId: string) => Promise<{ success: boolean; error?: string }>
   getFilePath: (file: File) => string
   getConfig: () => Promise<ConfigResponse>
   setConfig: (config: Partial<AppConfig>) => Promise<ConfigResponse>
@@ -131,12 +132,19 @@ export interface BrainAPI {
   onAgentStateChange: (callback: (state: AgentState) => void) => () => void
 
   // LLM API
-  getLLMModels: () => Promise<LLMModelsResponse>
+  getLLMModels: (provider?: ApiKeyProvider) => Promise<LLMModelsResponse>
   getLLMConfig: () => Promise<LLMConfigResponse>
-  setLLMApiKey: (apiKey: string) => Promise<{ success: boolean; error?: string }>
-  clearLLMApiKey: () => Promise<{ success: boolean; error?: string }>
+  getLLMKeyStatus: () => Promise<{ success: boolean; status?: ApiKeyStatus; error?: string }>
+  setLLMApiKey: (apiKey: string, provider?: ApiKeyProvider) => Promise<{ success: boolean; error?: string }>
+  clearLLMApiKey: (provider?: ApiKeyProvider) => Promise<{ success: boolean; error?: string }>
   setLLMModel: (modelId: string) => Promise<{ success: boolean; error?: string }>
   testLLM: () => Promise<{ success: boolean; response?: string; error?: string }>
+
+  // Embedding Models API
+  getEmbeddingModels: () => Promise<EmbeddingModelsResponse>
+  downloadEmbeddingModel: (modelId: string) => Promise<{ success: boolean; error?: string }>
+  setActiveEmbeddingModel: (modelId: string) => Promise<{ success: boolean; error?: string }>
+  onEmbeddingModelDownloadProgress: (callback: (progress: EmbeddingModelDownloadProgress) => void) => () => void
 
   // Progress events
   onScanProgress: (callback: (progress: ScanProgress) => void) => () => void
@@ -234,7 +242,8 @@ export interface LLMModel {
 }
 
 export interface LLMConfig {
-  hasApiKey: boolean
+  hasOpenRouterKey: boolean
+  hasGeminiKey: boolean
   model: string
   isReady: boolean
 }
@@ -249,6 +258,43 @@ export interface LLMConfigResponse {
   success: boolean
   config?: LLMConfig
   error?: string
+}
+
+/**
+ * API Key Provider types
+ */
+export type ApiKeyProvider = 'openrouter' | 'gemini'
+
+export interface ApiKeyStatus {
+  openrouter: boolean
+  gemini: boolean
+}
+
+/**
+ * Embedding model types
+ */
+export interface EmbeddingModelInfo {
+  id: string
+  name: string
+  provider: 'local'
+  sizeBytes: number
+  dimensions: number
+  description: string
+  downloaded: boolean
+  downloading: boolean
+}
+
+export interface EmbeddingModelsResponse {
+  success: boolean
+  models?: EmbeddingModelInfo[]
+  activeModelId?: string
+  error?: string
+}
+
+export interface EmbeddingModelDownloadProgress {
+  modelId: string
+  percent: number
+  status: string
 }
 
 /**

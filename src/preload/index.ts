@@ -48,6 +48,18 @@ const api: BrainAPI = {
       throw error
     }
   },
+  deleteFile: async (fileId) => {
+    log.info('ipcRenderer.invoke(delete-file) start', { fileId })
+    const startedAt = Date.now()
+    try {
+      const response = await electronAPI.ipcRenderer.invoke('delete-file', fileId)
+      log.info('ipcRenderer.invoke(delete-file) done', { durationMs: Date.now() - startedAt, response })
+      return response
+    } catch (error) {
+      log.error('ipcRenderer.invoke(delete-file) failed', { durationMs: Date.now() - startedAt, error })
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to delete file' }
+    }
+  },
   getFilePath: (file) => webUtils.getPathForFile(file),
 
   // Configuration API
@@ -175,9 +187,9 @@ const api: BrainAPI = {
   },
 
   // LLM API
-  getLLMModels: async () => {
+  getLLMModels: async (provider) => {
     try {
-      return await electronAPI.ipcRenderer.invoke('llm-get-models')
+      return await electronAPI.ipcRenderer.invoke('llm-get-models', provider)
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Failed to get models' }
     }
@@ -189,16 +201,23 @@ const api: BrainAPI = {
       return { success: false, error: error instanceof Error ? error.message : 'Failed to get config' }
     }
   },
-  setLLMApiKey: async (apiKey) => {
+  getLLMKeyStatus: async () => {
     try {
-      return await electronAPI.ipcRenderer.invoke('llm-set-api-key', apiKey)
+      return await electronAPI.ipcRenderer.invoke('llm-get-key-status')
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to get key status' }
+    }
+  },
+  setLLMApiKey: async (apiKey, provider = 'openrouter') => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('llm-set-api-key', apiKey, provider)
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Failed to set API key' }
     }
   },
-  clearLLMApiKey: async () => {
+  clearLLMApiKey: async (provider = 'openrouter') => {
     try {
-      return await electronAPI.ipcRenderer.invoke('llm-clear-api-key')
+      return await electronAPI.ipcRenderer.invoke('llm-clear-api-key', provider)
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Failed to clear API key' }
     }
@@ -216,6 +235,34 @@ const api: BrainAPI = {
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Failed to test LLM' }
     }
+  },
+
+  // Embedding Models API
+  getEmbeddingModels: async () => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('get-embedding-models')
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to get embedding models' }
+    }
+  },
+  downloadEmbeddingModel: async (modelId) => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('download-embedding-model', modelId)
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to download model' }
+    }
+  },
+  setActiveEmbeddingModel: async (modelId) => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('set-active-embedding-model', modelId)
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to set active model' }
+    }
+  },
+  onEmbeddingModelDownloadProgress: (callback) => {
+    const handler = (_event: unknown, progress: unknown) => callback(progress as import('../shared/types').EmbeddingModelDownloadProgress)
+    electronAPI.ipcRenderer.on('embedding-model-download-progress', handler)
+    return () => electronAPI.ipcRenderer.removeListener('embedding-model-download-progress', handler)
   },
 
   // Progress events

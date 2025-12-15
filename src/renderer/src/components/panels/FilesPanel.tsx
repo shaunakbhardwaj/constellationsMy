@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react'
-import { UploadIcon, getFileIcon, RefreshIcon } from '../Icons'
+import { UploadIcon, getFileIcon, RefreshIcon, TrashIcon } from '../Icons'
 import type { BrainFileRow } from '../../../../shared/types'
 
 type DropState = 'idle' | 'hover' | 'uploading' | 'success' | 'error'
@@ -98,6 +98,9 @@ export function FilesPanel(): React.JSX.Element {
     const [dataRows, setDataRows] = useState<BrainFileRow[]>([])
     const [dataLoading, setDataLoading] = useState(true)
     const [dataError, setDataError] = useState<string | null>(null)
+    const [deleteTarget, setDeleteTarget] = useState<BrainFileRow | null>(null)
+    const [deleteError, setDeleteError] = useState<string | null>(null)
+    const [deleteLoading, setDeleteLoading] = useState(false)
     const dragDepth = useRef(0)
 
     // Reset drop state after success/error
@@ -132,6 +135,20 @@ export function FilesPanel(): React.JSX.Element {
     useEffect(() => {
         void fetchData()
     }, [fetchData])
+
+    useEffect(() => {
+        if (!deleteTarget) return undefined
+
+        const onKeyDown = (event: KeyboardEvent): void => {
+            if (event.key === 'Escape') {
+                setDeleteTarget(null)
+                setDeleteError(null)
+            }
+        }
+
+        window.addEventListener('keydown', onKeyDown)
+        return () => window.removeEventListener('keydown', onKeyDown)
+    }, [deleteTarget])
 
     const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
         event.preventDefault()
@@ -201,6 +218,30 @@ export function FilesPanel(): React.JSX.Element {
         console.log('Reveal in Finder:', path)
     }, [])
 
+    const handleDeleteClick = useCallback((row: BrainFileRow) => {
+        setDeleteError(null)
+        setDeleteTarget(row)
+    }, [])
+
+    const handleConfirmDelete = useCallback(async () => {
+        if (!deleteTarget) return
+
+        setDeleteLoading(true)
+        setDeleteError(null)
+        try {
+            const response = await window.api.deleteFile(deleteTarget.id)
+            if (!response.success) {
+                throw new Error(response.error ?? 'Failed to delete file')
+            }
+            setDeleteTarget(null)
+            void fetchData()
+        } catch (error) {
+            setDeleteError(error instanceof Error ? error.message : 'Failed to delete file')
+        } finally {
+            setDeleteLoading(false)
+        }
+    }, [deleteTarget, fetchData])
+
     return (
         <div className="panel active" id="files">
             <div className="page-header">
@@ -257,6 +298,7 @@ export function FilesPanel(): React.JSX.Element {
                                 <th>Chunks</th>
                                 <th>Size</th>
                                 <th>Status</th>
+                                <th className="file-actions-header">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -287,12 +329,75 @@ export function FilesPanel(): React.JSX.Element {
                                                         : 'Pending'}
                                         </span>
                                     </td>
+                                    <td className="file-actions-cell">
+                                        <button
+                                            className="icon-btn danger"
+                                            onClick={() => handleDeleteClick(row)}
+                                            disabled={row.indexedStatus === 'processing'}
+                                            type="button"
+                                            aria-label={`Delete ${row.relativePath}`}
+                                            title={
+                                                row.indexedStatus === 'processing'
+                                                    ? 'Cannot delete while indexing'
+                                                    : 'Delete file'
+                                            }
+                                        >
+                                            <TrashIcon />
+                                        </button>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 )}
             </div>
+
+            {deleteTarget && (
+                <div
+                    className="modal-overlay"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Delete file confirmation"
+                    onClick={() => {
+                        if (!deleteLoading) {
+                            setDeleteTarget(null)
+                            setDeleteError(null)
+                        }
+                    }}
+                >
+                    <div className="modal" onClick={(event) => event.stopPropagation()}>
+                        <div className="modal-title">
+                            Delete &quot;{deleteTarget.relativePath.split('/').pop() ?? deleteTarget.relativePath}
+                            &quot;?
+                        </div>
+                        <div className="modal-body">
+                            This will permanently remove the file and all its indexed data from the brain.
+                        </div>
+                        {deleteError && <div className="modal-error">{deleteError}</div>}
+                        <div className="modal-actions">
+                            <button
+                                className="btn-secondary"
+                                onClick={() => {
+                                    setDeleteTarget(null)
+                                    setDeleteError(null)
+                                }}
+                                disabled={deleteLoading}
+                                type="button"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="btn-danger"
+                                onClick={handleConfirmDelete}
+                                disabled={deleteLoading}
+                                type="button"
+                            >
+                                {deleteLoading ? 'Deleting…' : 'Delete'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

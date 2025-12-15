@@ -9,6 +9,7 @@ import { getSQLite } from '../../db'
 import { createLogger } from '../../../shared/logger'
 import { getEmbeddingModelStatuses, downloadEmbeddingModel } from '../../ai/model-manager'
 import { getConfig, updateConfig } from '../../config'
+import { disposeIngestionWorker } from '../../workers/worker-manager'
 import type { BrainFileRow } from '../../../shared/types'
 
 const log = createLogger('ipc/brain')
@@ -95,6 +96,8 @@ export function registerBrainHandlers(ipcMain: IpcMain): void {
         embedding: { model: modelId }
       })
 
+      void disposeIngestionWorker()
+
       log.info('set-active-embedding-model success', { modelId })
       return { success: true, config: updated }
     } catch (error) {
@@ -106,4 +109,3 @@ export function registerBrainHandlers(ipcMain: IpcMain): void {
     }
   })
 }
-

@@ -3,10 +3,10 @@
  * Offloads CPU-heavy AI processing from the main thread to prevent UI freezing.
  */
 import { parentPort } from 'worker_threads'
-import { pipeline, type FeatureExtractionPipeline } from '@xenova/transformers'
+import { env, pipeline, type FeatureExtractionPipeline } from '@xenova/transformers'
 
 type WorkerMessage =
-  | { type: 'init' }
+  | { type: 'init'; modelId: string; cacheDir: string }
   | { type: 'generate'; id: string; chunks: string[] }
   | { type: 'dispose' }
 
@@ -18,17 +18,28 @@ type WorkerResponse =
   | { type: 'disposed' }
 
 let extractor: FeatureExtractionPipeline | null = null
+let loadedModelId: string | null = null
 
-async function initModel(): Promise<void> {
-  if (extractor) return
+async function initModel(modelId: string, cacheDir: string): Promise<void> {
+  if (extractor && loadedModelId === modelId) return
 
-  console.log('[Worker] Loading embedding model...')
-  extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2')
+  if (extractor && loadedModelId !== modelId) {
+    await disposeModel()
+  }
+
+  env.cacheDir = cacheDir
+  env.allowLocalModels = true
+
+  console.log('[Worker] Loading embedding model...', { modelId })
+  extractor = await pipeline('feature-extraction', modelId)
+  loadedModelId = modelId
   console.log('[Worker] Model loaded successfully')
 }
 
 async function generateEmbeddings(chunks: string[]): Promise<number[][]> {
-  if (!extractor) await initModel()
+  if (!extractor) {
+    throw new Error('Embedding model not initialized')
+  }
 
   const vectors: number[][] = []
   for (const chunk of chunks) {
@@ -45,6 +56,7 @@ async function disposeModel(): Promise<void> {
       await disposable.dispose()
     }
     extractor = null
+    loadedModelId = null
     console.log('[Worker] Model disposed')
   }
 }
@@ -54,11 +66,11 @@ if (parentPort) {
     try {
       switch (message.type) {
         case 'init':
-          await initModel()
+          await initModel(message.modelId, message.cacheDir)
           parentPort!.postMessage({ type: 'init-complete' } satisfies WorkerResponse)
           break
 
-        case 'generate':
+        case 'generate': {
           const vectors = await generateEmbeddings(message.chunks)
           parentPort!.postMessage({
             type: 'embeddings',
@@ -66,6 +78,7 @@ if (parentPort) {
             vectors
           } satisfies WorkerResponse)
           break
+        }
 
         case 'dispose':
           await disposeModel()

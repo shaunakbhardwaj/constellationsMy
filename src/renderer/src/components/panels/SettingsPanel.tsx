@@ -24,6 +24,7 @@ export function SettingsPanel(): React.JSX.Element {
     const [embeddingModels, setEmbeddingModels] = useState<EmbeddingModelInfo[]>([])
     const [activeEmbeddingModel, setActiveEmbeddingModel] = useState('')
     const [downloadProgress, setDownloadProgress] = useState<Record<string, number>>({})
+    const [embeddingAction, setEmbeddingAction] = useState<Record<string, 'downloading' | 'activating'>>({})
 
     // Load config and LLM info on mount
     useEffect(() => {
@@ -99,40 +100,62 @@ export function SettingsPanel(): React.JSX.Element {
         return unsubscribe
     }, [])
 
-    const showMessage = (msg: string) => {
+    const showMessage = (msg: string): void => {
         setSaveMessage(msg)
         setTimeout(() => setSaveMessage(null), 3000)
     }
 
+    const refreshEmbeddingModels = useCallback((): void => {
+        window.api.getEmbeddingModels().then((res) => {
+            if (res.success && res.models) {
+                setEmbeddingModels(res.models)
+                setActiveEmbeddingModel(res.activeModelId ?? '')
+            }
+        })
+    }, [])
+
     const handleDownloadModel = useCallback(async (modelId: string) => {
-        setSaving(true)
+        setEmbeddingAction((prev) => ({ ...prev, [modelId]: 'downloading' }))
         try {
             // Start download - progress will be received via event
-            await window.api.downloadEmbeddingModel(modelId)
-            showMessage('Model downloaded successfully')
+            const response = await window.api.downloadEmbeddingModel(modelId)
+            if (!response.success) {
+                throw new Error(response.error ?? 'Failed to download model')
+            }
+            showMessage('Model downloaded')
+            refreshEmbeddingModels()
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to download model')
         } finally {
-            setSaving(false)
+            setEmbeddingAction((prev) => {
+                const next = { ...prev }
+                delete next[modelId]
+                return next
+            })
         }
-    }, [])
+    }, [refreshEmbeddingModels])
 
     const handleSetActiveEmbeddingModel = useCallback(async (modelId: string) => {
-        setSaving(true)
+        setEmbeddingAction((prev) => ({ ...prev, [modelId]: 'activating' }))
         try {
             const response = await window.api.setActiveEmbeddingModel(modelId)
             if (response.success) {
                 setActiveEmbeddingModel(modelId)
                 showMessage('Active embedding model updated')
+                refreshEmbeddingModels()
             } else {
                 setError(response.error ?? 'Failed to set active model')
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to set active model')
         } finally {
-            setSaving(false)
+            setEmbeddingAction((prev) => {
+                const next = { ...prev }
+                delete next[modelId]
+                return next
+            })
         }
-    }, [])
+    }, [refreshEmbeddingModels])
 
     const handleSaveOpenRouterKey = useCallback(async () => {
         if (!openRouterKey.trim()) return
@@ -408,87 +431,110 @@ export function SettingsPanel(): React.JSX.Element {
 
                 {/* Model list */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {embeddingModels.map((model) => (
-                        <div
-                            key={model.id}
-                            onClick={() => {
-                                if (model.downloaded && !model.downloading && activeEmbeddingModel !== model.id) {
-                                    handleSetActiveEmbeddingModel(model.id)
-                                }
-                            }}
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                padding: '12px 16px',
-                                background: activeEmbeddingModel === model.id ? 'var(--accent-light)' : 'var(--bg-secondary)',
-                                borderRadius: 'var(--radius-md)',
-                                border: activeEmbeddingModel === model.id ? '1px solid var(--accent)' : '1px solid transparent',
-                                cursor: model.downloaded && !model.downloading ? 'pointer' : 'default',
-                                opacity: model.downloading ? 0.7 : 1,
-                                transition: 'all 0.2s ease'
-                            }}
-                        >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-                                <input
-                                    type="radio"
-                                    name="embeddingModel"
-                                    checked={activeEmbeddingModel === model.id}
-                                    readOnly // Managed by parent onClick
-                                    disabled={!model.downloaded || model.downloading}
-                                    style={{ margin: 0, cursor: 'inherit' }}
-                                />
-                                <div>
-                                    <div style={{ fontWeight: 500, fontSize: '14px' }}>
-                                        {model.name}
-                                        {activeEmbeddingModel === model.id && (
-                                            <span
-                                                style={{
-                                                    marginLeft: '8px',
-                                                    padding: '2px 6px',
-                                                    background: 'var(--accent)',
-                                                    color: 'white',
-                                                    borderRadius: '4px',
-                                                    fontSize: '10px'
-                                                }}
-                                            >
-                                                Active
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
-                                        {model.description} • {(model.sizeBytes / 1_000_000).toFixed(0)} MB • {model.dimensions}d
+                    {embeddingModels.map((model) => {
+                        const isActive = activeEmbeddingModel === model.id
+                        const isDownloading = model.downloading || downloadProgress[model.id] !== undefined
+                        const isBusy = embeddingAction[model.id] !== undefined
+                        const canSelect = model.downloaded && !isDownloading && !isBusy && !isActive
+
+                        return (
+                            <div
+                                key={model.id}
+                                onClick={() => {
+                                    if (canSelect) {
+                                        handleSetActiveEmbeddingModel(model.id)
+                                    }
+                                }}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '12px 16px',
+                                    background: isActive
+                                        ? 'var(--success-light)'
+                                        : model.downloaded
+                                            ? 'var(--bg-secondary)'
+                                            : 'var(--bg-tertiary)',
+                                    borderRadius: 'var(--radius-md)',
+                                    border: isActive
+                                        ? '1.5px solid var(--success)'
+                                        : '1px solid var(--border-subtle)',
+                                    cursor: canSelect ? 'pointer' : 'default',
+                                    opacity: isDownloading ? 0.7 : model.downloaded ? 1 : 0.8,
+                                    transition: 'all 0.2s ease'
+                                }}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+                                    {/* Radio button only for downloaded models */}
+                                    {model.downloaded && (
+                                        <input
+                                            type="radio"
+                                            name="embeddingModel"
+                                            checked={isActive}
+                                            onChange={() => {
+                                                if (canSelect) {
+                                                    handleSetActiveEmbeddingModel(model.id)
+                                                }
+                                            }}
+                                            disabled={!canSelect}
+                                            style={{ margin: 0, cursor: canSelect ? 'pointer' : 'default' }}
+                                        />
+                                    )}
+                                    <div>
+                                        <div style={{ fontWeight: 500, fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            {model.name}
+                                            {isActive && (
+                                                <span
+                                                    style={{
+                                                        padding: '2px 8px',
+                                                        background: 'var(--success)',
+                                                        color: 'white',
+                                                        borderRadius: '4px',
+                                                        fontSize: '10px',
+                                                        fontWeight: 600
+                                                    }}
+                                                >
+                                                    IN USE
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+                                            {model.description} • {(model.sizeBytes / 1_000_000).toFixed(0)} MB • {model.dimensions}d
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                {model.downloading || downloadProgress[model.id] !== undefined ? (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <div className="loading-spinner" style={{ width: '16px', height: '16px' }} />
-                                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                                            {downloadProgress[model.id] !== undefined && downloadProgress[model.id] > 0
-                                                ? `${downloadProgress[model.id]}%`
-                                                : 'Downloading...'}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    {isDownloading ? (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <div className="loading-spinner" style={{ width: '16px', height: '16px' }} />
+                                            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                                {downloadProgress[model.id] !== undefined && downloadProgress[model.id] > 0
+                                                    ? `${downloadProgress[model.id]}%`
+                                                    : 'Downloading...'}
+                                            </span>
+                                        </div>
+                                    ) : model.downloaded ? (
+                                        <span style={{ color: 'var(--success)', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <span style={{ fontSize: '14px' }}>✓</span>
                                         </span>
-                                    </div>
-                                ) : model.downloaded ? (
-                                    <span style={{ color: 'var(--success)', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                        <span style={{ fontSize: '14px' }}>✓</span> Downloaded
-                                    </span>
-                                ) : (
-                                    <button
-                                        className="settings-btn"
-                                        onClick={() => handleDownloadModel(model.id)}
-                                        disabled={saving}
-                                        type="button"
-                                        style={{ minWidth: '80px' }}
-                                    >
-                                        Download
-                                    </button>
-                                )}
+                                    ) : (
+                                        <button
+                                            className="settings-btn"
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                handleDownloadModel(model.id)
+                                            }}
+                                            disabled={isBusy || saving}
+                                            type="button"
+                                            style={{ minWidth: '80px' }}
+                                        >
+                                            {embeddingAction[model.id] === 'downloading' ? 'Starting…' : 'Download'}
+                                        </button>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        )
+                    })}
                 </div>
             </div>
 
