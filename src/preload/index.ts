@@ -86,6 +86,92 @@ const api: BrainAPI = {
       log.error('ipcRenderer.invoke(reset-config) failed', { durationMs: Date.now() - startedAt, error })
       throw error
     }
+  },
+
+  // Goals API
+  getGoals: async () => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('get-goals')
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to get goals' }
+    }
+  },
+  createGoal: async (request) => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('create-goal', request)
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to create goal' }
+    }
+  },
+  updateGoal: async (id, updates) => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('update-goal', id, updates)
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to update goal' }
+    }
+  },
+  deleteGoal: async (id) => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('delete-goal', id)
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to delete goal' }
+    }
+  },
+  toggleGoalComplete: async (id) => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('toggle-goal-complete', id)
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to toggle goal' }
+    }
+  },
+
+  // Agent API
+  getAgentState: async () => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('agent-get-state')
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to get agent state' }
+    }
+  },
+  startAgent: async (goalId) => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('agent-start', goalId)
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to start agent' }
+    }
+  },
+  pauseAgent: async () => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('agent-pause')
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to pause agent' }
+    }
+  },
+  resumeAgent: async () => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('agent-resume')
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to resume agent' }
+    }
+  },
+  stopAgent: async () => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('agent-stop')
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to stop agent' }
+    }
+  },
+  sendAgentGuidance: async (guidance) => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('agent-guidance', guidance)
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to send guidance' }
+    }
+  },
+  onAgentStateChange: (callback) => {
+    const handler = (_event: unknown, state: unknown) => callback(state as import('../shared/types').AgentState)
+    electronAPI.ipcRenderer.on('agent-state-update', handler)
+    return () => electronAPI.ipcRenderer.removeListener('agent-state-update', handler)
   }
 }
 

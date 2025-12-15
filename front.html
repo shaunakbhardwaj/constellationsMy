@@ -4,11 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Constellations – Knowledge OS</title>
+    <title>Constellations</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
         rel="stylesheet">
     <style>
         * {
@@ -18,460 +18,361 @@
         }
 
         :root {
-            /* Light theme - off-white and charcoal */
             --bg-primary: #fafafa;
             --bg-secondary: #ffffff;
-            --bg-tertiary: #f5f5f5;
-            --bg-hover: #efefef;
+            --bg-tertiary: #f3f3f3;
+            --bg-sidebar: #f7f7f7;
             --border-subtle: rgba(0, 0, 0, 0.06);
             --border-default: rgba(0, 0, 0, 0.1);
-            --border-strong: rgba(0, 0, 0, 0.2);
             --text-primary: #1a1a1a;
             --text-secondary: #525252;
-            --text-tertiary: #737373;
-            --accent: #2563eb;
-            --accent-light: #dbeafe;
-            --success: #16a34a;
+            --text-tertiary: #8a8a8a;
+            --accent: #1a1a1a;
+            --success: #22c55e;
             --success-light: #dcfce7;
-            --warning: #ca8a04;
+            --warning: #eab308;
             --warning-light: #fef9c3;
-            --error: #dc2626;
+            --error: #ef4444;
             --error-light: #fee2e2;
             --radius-sm: 6px;
-            --radius-md: 10px;
-            --radius-lg: 16px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --sidebar-width: 220px;
         }
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
-            min-height: 100vh;
-            line-height: 1.5;
+            height: 100vh;
+            overflow: hidden;
             -webkit-font-smoothing: antialiased;
-            position: relative;
         }
 
-        /* Static Galaxy Background */
+        /* Static Background Graphic */
         .bg-graphic {
             position: fixed;
             top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            left: var(--sidebar-width);
+            right: 0;
+            bottom: 0;
             pointer-events: none;
             z-index: 0;
-            opacity: 0.04;
+            opacity: 0.025;
         }
 
-        .bg-graphic svg {
-            width: 100%;
-            height: 100%;
+        /* App Layout */
+        .app-layout {
+            display: flex;
+            height: 100vh;
         }
 
-        /* App Container */
-        .app-container {
-            position: relative;
-            z-index: 1;
-            min-height: 100vh;
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border-subtle);
             display: flex;
             flex-direction: column;
+            flex-shrink: 0;
+            z-index: 10;
         }
 
-        /* Header */
-        .app-header {
-            padding: 16px 32px;
-            border-bottom: 1px solid var(--border-subtle);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: var(--bg-secondary);
-        }
-
-        .logo {
+        .sidebar-header {
+            padding: 20px 16px;
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
         .logo-icon {
-            width: 28px;
-            height: 28px;
+            width: 24px;
+            height: 24px;
         }
 
         .logo-text {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 600;
-            letter-spacing: -0.02em;
-            color: var(--text-primary);
+            letter-spacing: -0.01em;
         }
 
-        /* Tab Navigation */
-        .tab-nav {
+        .sidebar-nav {
+            flex: 1;
+            padding: 8px;
+        }
+
+        .nav-item {
             display: flex;
-            gap: 4px;
-            padding: 4px;
-            background: var(--bg-tertiary);
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
             border-radius: var(--radius-md);
-        }
-
-        .tab-button {
-            padding: 8px 16px;
-            background: transparent;
-            border: none;
-            border-radius: var(--radius-sm);
             font-size: 13px;
             font-weight: 500;
             color: var(--text-secondary);
             cursor: pointer;
-            transition: all 0.15s ease;
-            font-family: inherit;
+            transition: all 0.1s ease;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
         }
 
-        .tab-button:hover {
+        .nav-item:hover {
+            background: rgba(0, 0, 0, 0.04);
             color: var(--text-primary);
-            background: var(--bg-hover);
         }
 
-        .tab-button.active {
+        .nav-item.active {
             background: var(--bg-secondary);
             color: var(--text-primary);
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        }
+
+        .nav-item svg {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
+
+        .sidebar-footer {
+            padding: 12px;
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        .settings-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-md);
+            border: none;
+            background: none;
+            color: var(--text-tertiary);
+            cursor: pointer;
+            transition: all 0.1s ease;
+        }
+
+        .settings-button:hover {
+            background: rgba(0, 0, 0, 0.04);
+            color: var(--text-primary);
+        }
+
+        .settings-button svg {
+            width: 18px;
+            height: 18px;
         }
 
         /* Main Content */
         .main-content {
             flex: 1;
-            padding: 40px 32px;
-            max-width: 960px;
-            margin: 0 auto;
-            width: 100%;
-        }
-
-        /* Tab Panels */
-        .tab-panel {
-            display: none;
-        }
-
-        .tab-panel.active {
-            display: block;
-        }
-
-        /* Section Headers */
-        .section-header {
-            margin-bottom: 24px;
-        }
-
-        .section-title {
-            font-size: 24px;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 8px;
-        }
-
-        .section-subtitle {
-            font-size: 14px;
-            color: var(--text-tertiary);
-        }
-
-        /* Search Panel */
-        .search-container {
             display: flex;
-            gap: 12px;
-            margin-bottom: 32px;
-        }
-
-        .search-input-wrapper {
-            flex: 1;
+            flex-direction: column;
+            overflow: hidden;
             position: relative;
         }
 
-        .search-icon {
-            position: absolute;
-            left: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 20px;
-            height: 20px;
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 40px 48px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Panels */
+        .panel {
+            display: none;
+        }
+
+        .panel.active {
+            display: block;
+        }
+
+        /* ========== HOME PANEL ========== */
+        .home-greeting {
+            margin-bottom: 32px;
+        }
+
+        .greeting-text {
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .greeting-sub {
+            font-size: 14px;
             color: var(--text-tertiary);
         }
 
-        .search-input {
+        .home-search {
+            margin-bottom: 40px;
+        }
+
+        .home-search-input {
             width: 100%;
+            max-width: 480px;
             background: var(--bg-secondary);
             border: 1px solid var(--border-default);
             border-radius: var(--radius-md);
-            padding: 16px 16px 16px 48px;
-            font-size: 15px;
+            padding: 14px 16px;
+            font-size: 14px;
             color: var(--text-primary);
             font-family: inherit;
-            transition: all 0.15s ease;
         }
 
-        .search-input:focus {
+        .home-search-input:focus {
             outline: none;
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px var(--accent-light);
-        }
-
-        .search-input::placeholder {
-            color: var(--text-tertiary);
-        }
-
-        .primary-button {
-            padding: 16px 28px;
-            background: var(--text-primary);
-            border: none;
-            border-radius: var(--radius-md);
-            color: var(--bg-secondary);
-            font-size: 14px;
-            font-weight: 500;
-            font-family: inherit;
-            cursor: pointer;
-            transition: all 0.15s ease;
-        }
-
-        .primary-button:hover {
-            background: #333;
-        }
-
-        /* Search Results */
-        .results-container {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .result-card {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-md);
-            padding: 20px;
-            transition: all 0.15s ease;
-        }
-
-        .result-card:hover {
-            border-color: var(--border-default);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-        }
-
-        .result-meta {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 10px;
-        }
-
-        .result-source {
-            font-size: 12px;
-            font-weight: 500;
-            color: var(--text-tertiary);
-            font-family: 'JetBrains Mono', monospace;
-        }
-
-        .result-score {
-            font-size: 11px;
-            padding: 2px 8px;
-            background: var(--bg-tertiary);
-            border-radius: 100px;
-            color: var(--text-tertiary);
-        }
-
-        .result-text {
-            font-size: 14px;
-            color: var(--text-secondary);
-            line-height: 1.6;
-        }
-
-        /* Drop Zone */
-        .drop-zone {
-            border: 2px dashed var(--border-default);
-            border-radius: var(--radius-lg);
-            padding: 64px 32px;
-            text-align: center;
-            background: var(--bg-secondary);
-            transition: all 0.2s ease;
-            cursor: pointer;
-        }
-
-        .drop-zone:hover,
-        .drop-zone.hover {
             border-color: var(--text-primary);
-            background: var(--bg-tertiary);
         }
 
-        .drop-zone.success {
-            border-color: var(--success);
-            background: var(--success-light);
-        }
-
-        .drop-icon {
-            width: 48px;
-            height: 48px;
-            margin: 0 auto 20px;
+        .home-search-input::placeholder {
             color: var(--text-tertiary);
         }
 
-        .drop-zone:hover .drop-icon {
-            color: var(--text-primary);
+        .home-section {
+            margin-bottom: 32px;
         }
 
-        .drop-title {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: var(--text-primary);
-        }
-
-        .drop-subtitle {
-            font-size: 14px;
+        .section-label {
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
             color: var(--text-tertiary);
-            margin-bottom: 20px;
+            margin-bottom: 12px;
         }
 
-        .drop-hint {
-            display: inline-block;
-            padding: 6px 12px;
-            background: var(--bg-tertiary);
-            border-radius: var(--radius-sm);
-            font-size: 12px;
-            color: var(--text-tertiary);
-            font-family: 'JetBrains Mono', monospace;
-        }
-
-        /* Autonomous Panel */
-        .autonomous-card {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-lg);
-            padding: 32px;
-            margin-bottom: 24px;
-        }
-
-        .autonomous-header {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            margin-bottom: 20px;
-        }
-
-        .autonomous-icon {
-            width: 48px;
-            height: 48px;
-            background: var(--bg-tertiary);
-            border-radius: var(--radius-md);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .autonomous-icon svg {
-            width: 24px;
-            height: 24px;
-            color: var(--text-secondary);
-        }
-
-        .autonomous-title {
-            font-size: 18px;
-            font-weight: 600;
-        }
-
-        .autonomous-desc {
-            font-size: 13px;
-            color: var(--text-tertiary);
-        }
-
-        .goal-input {
-            width: 100%;
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-md);
-            padding: 16px;
-            font-size: 14px;
-            color: var(--text-primary);
-            font-family: inherit;
-            resize: vertical;
-            min-height: 120px;
-            margin-bottom: 16px;
-        }
-
-        .goal-input:focus {
-            outline: none;
-            border-color: var(--accent);
-        }
-
-        .goal-input::placeholder {
-            color: var(--text-tertiary);
-        }
-
-        /* Data Table */
-        .data-table-card {
+        /* Goals List */
+        .goals-list {
             background: var(--bg-secondary);
             border: 1px solid var(--border-subtle);
             border-radius: var(--radius-lg);
             overflow: hidden;
         }
 
-        .table-header {
-            padding: 16px 20px;
-            border-bottom: 1px solid var(--border-subtle);
+        .goal-item {
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .table-title {
-            font-size: 14px;
-            font-weight: 600;
-        }
-
-        .table-count {
-            font-size: 12px;
-            color: var(--text-tertiary);
-            padding: 4px 10px;
-            background: var(--bg-tertiary);
-            border-radius: var(--radius-sm);
-        }
-
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-        }
-
-        .data-table th {
-            padding: 12px 16px;
-            text-align: left;
-            font-weight: 500;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--text-tertiary);
-            background: var(--bg-tertiary);
-            border-bottom: 1px solid var(--border-subtle);
-        }
-
-        .data-table td {
+            align-items: flex-start;
+            gap: 12px;
             padding: 14px 16px;
             border-bottom: 1px solid var(--border-subtle);
-            color: var(--text-secondary);
         }
 
-        .data-table tbody tr:hover {
-            background: var(--bg-hover);
-        }
-
-        .data-table tbody tr:last-child td {
+        .goal-item:last-child {
             border-bottom: none;
         }
 
-        .file-cell {
+        .goal-checkbox {
+            width: 18px;
+            height: 18px;
+            border: 1.5px solid var(--border-default);
+            border-radius: 4px;
+            flex-shrink: 0;
+            margin-top: 2px;
+            cursor: pointer;
+            transition: all 0.1s ease;
+        }
+
+        .goal-checkbox:hover {
+            border-color: var(--text-secondary);
+        }
+
+        .goal-checkbox.checked {
+            background: var(--text-primary);
+            border-color: var(--text-primary);
+        }
+
+        .goal-content {
+            flex: 1;
+        }
+
+        .goal-text {
+            font-size: 13px;
+            color: var(--text-primary);
+            line-height: 1.4;
+        }
+
+        .goal-text.completed {
+            color: var(--text-tertiary);
+            text-decoration: line-through;
+        }
+
+        .goal-meta {
+            font-size: 11px;
+            color: var(--text-tertiary);
+            margin-top: 4px;
+        }
+
+        .goal-input-row {
+            display: flex;
+            gap: 8px;
+            padding: 12px 16px;
+            background: var(--bg-tertiary);
+        }
+
+        .goal-input {
+            flex: 1;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+            font-size: 13px;
+            font-family: inherit;
+            color: var(--text-primary);
+        }
+
+        .goal-input:focus {
+            outline: none;
+            border-color: var(--text-primary);
+        }
+
+        .goal-input::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        .goal-add-btn {
+            padding: 10px 16px;
+            background: var(--text-primary);
+            border: none;
+            border-radius: var(--radius-sm);
+            color: white;
+            font-size: 12px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+        }
+
+        .goal-add-btn:hover {
+            background: #333;
+        }
+
+        /* Recent Files - Compact */
+        .recent-files {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .recent-file-item {
             display: flex;
             align-items: center;
             gap: 12px;
+            padding: 10px 14px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.1s ease;
         }
 
-        .file-icon-small {
+        .recent-file-item:hover {
+            border-color: var(--border-default);
+        }
+
+        .recent-file-icon {
             width: 32px;
             height: 32px;
             background: var(--bg-tertiary);
@@ -482,36 +383,33 @@
             flex-shrink: 0;
         }
 
-        .file-icon-small svg {
+        .recent-file-icon svg {
             width: 16px;
             height: 16px;
             color: var(--text-tertiary);
         }
 
-        .file-name {
+        .recent-file-name {
+            font-size: 13px;
             font-weight: 500;
             color: var(--text-primary);
         }
 
-        .file-path-link {
+        .recent-file-path {
             font-size: 11px;
             color: var(--text-tertiary);
             font-family: 'JetBrains Mono', monospace;
-            cursor: pointer;
         }
 
-        .file-path-link:hover {
-            color: var(--accent);
-            text-decoration: underline;
+        .recent-file-status {
+            margin-left: auto;
         }
 
         .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 4px 10px;
+            display: inline-block;
+            padding: 3px 8px;
             border-radius: 100px;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 500;
         }
 
@@ -530,43 +428,427 @@
             color: var(--error);
         }
 
-        .mono {
+        /* ========== SEARCH PANEL ========== */
+        .page-header {
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .page-subtitle {
+            font-size: 13px;
+            color: var(--text-tertiary);
+        }
+
+        .search-container {
+            margin-bottom: 24px;
+        }
+
+        .search-input-wrapper {
+            position: relative;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 18px;
+            height: 18px;
+            color: var(--text-tertiary);
+        }
+
+        .search-input-large {
+            width: 100%;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-md);
+            padding: 16px 16px 16px 48px;
+            font-size: 15px;
+            color: var(--text-primary);
+            font-family: inherit;
+        }
+
+        .search-input-large:focus {
+            outline: none;
+            border-color: var(--text-primary);
+        }
+
+        .results-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .result-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 16px 20px;
+        }
+
+        .result-card:hover {
+            border-color: var(--border-default);
+        }
+
+        .result-source {
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-tertiary);
             font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 8px;
+        }
+
+        .result-text {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* ========== FILES PANEL ========== */
+        .drop-zone {
+            border: 2px dashed var(--border-default);
+            border-radius: var(--radius-lg);
+            padding: 60px 40px;
+            text-align: center;
+            background: var(--bg-secondary);
+            transition: all 0.15s ease;
+            cursor: pointer;
+            margin-bottom: 24px;
+        }
+
+        .drop-zone:hover {
+            border-color: var(--text-primary);
+        }
+
+        .drop-zone.hover {
+            border-color: var(--text-primary);
+            border-style: solid;
+            background: var(--bg-tertiary);
+        }
+
+        .drop-icon {
+            width: 36px;
+            height: 36px;
+            margin: 0 auto 14px;
+            color: var(--text-tertiary);
+        }
+
+        .drop-title {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .drop-subtitle {
+            font-size: 12px;
+            color: var(--text-tertiary);
+        }
+
+        /* Data Table */
+        .data-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+
+        .data-header {
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .data-title {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .data-count {
+            font-size: 11px;
+            color: var(--text-tertiary);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
             font-size: 12px;
         }
 
-        .numeric {
-            text-align: right;
+        .data-table th {
+            padding: 10px 16px;
+            text-align: left;
+            font-weight: 500;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-tertiary);
+            background: var(--bg-tertiary);
         }
 
-        /* Settings Panel */
+        .data-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+        }
+
+        .data-table tbody tr:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .data-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .file-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .file-icon-sm {
+            width: 28px;
+            height: 28px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .file-icon-sm svg {
+            width: 14px;
+            height: 14px;
+            color: var(--text-tertiary);
+        }
+
+        .file-name {
+            font-weight: 500;
+            color: var(--text-primary);
+            font-size: 12px;
+        }
+
+        .file-path {
+            font-size: 10px;
+            color: var(--text-tertiary);
+            font-family: 'JetBrains Mono', monospace;
+            cursor: pointer;
+        }
+
+        .file-path:hover {
+            color: var(--text-primary);
+            text-decoration: underline;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* ========== AUTONOMOUS PANEL ========== */
+        .autonomous-status {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 20px 24px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            margin-bottom: 24px;
+        }
+
+        .status-spinner {
+            width: 40px;
+            height: 40px;
+            border: 2px solid var(--border-subtle);
+            border-top-color: var(--text-primary);
+            border-radius: 50%;
+            animation: spin 1.2s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .status-spinner.idle {
+            animation: none;
+            border-color: var(--border-default);
+            opacity: 0.4;
+        }
+
+        .status-info h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .status-info p {
+            font-size: 12px;
+            color: var(--text-tertiary);
+        }
+
+        .autonomous-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .auto-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+        }
+
+        .auto-card-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .auto-card-header svg {
+            width: 16px;
+            height: 16px;
+            color: var(--text-tertiary);
+        }
+
+        .auto-card-title {
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-tertiary);
+        }
+
+        .auto-card-content {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .auto-card-content ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .auto-card-content li {
+            padding: 6px 0;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .auto-card-content li:last-child {
+            border-bottom: none;
+        }
+
+        .auto-card-content li::before {
+            content: "✓";
+            color: var(--success);
+            font-size: 11px;
+            margin-top: 2px;
+        }
+
+        .auto-card.next li::before {
+            content: "→";
+            color: var(--text-tertiary);
+        }
+
+        .auto-card-empty {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            font-style: italic;
+        }
+
+        .guidance-section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 16px 20px;
+        }
+
+        .guidance-label {
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-tertiary);
+            margin-bottom: 10px;
+        }
+
+        .guidance-input-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .guidance-input {
+            flex: 1;
+            background: var(--bg-tertiary);
+            border: 1px solid transparent;
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+            font-size: 13px;
+            font-family: inherit;
+            color: var(--text-primary);
+        }
+
+        .guidance-input:focus {
+            outline: none;
+            border-color: var(--text-primary);
+        }
+
+        .guidance-input::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        .guidance-send-btn {
+            padding: 10px 16px;
+            background: var(--text-primary);
+            border: none;
+            border-radius: var(--radius-sm);
+            color: white;
+            font-size: 12px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+        }
+
+        .guidance-send-btn:hover {
+            background: #333;
+        }
+
+        /* ========== SETTINGS PANEL ========== */
         .settings-section {
             background: var(--bg-secondary);
             border: 1px solid var(--border-subtle);
             border-radius: var(--radius-lg);
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             overflow: hidden;
         }
 
         .settings-section-header {
-            padding: 16px 20px;
+            padding: 14px 18px;
             border-bottom: 1px solid var(--border-subtle);
             background: var(--bg-tertiary);
         }
 
         .settings-section-title {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 600;
         }
 
-        .settings-section-desc {
-            font-size: 12px;
-            color: var(--text-tertiary);
-            margin-top: 4px;
-        }
-
         .settings-row {
-            padding: 16px 20px;
+            padding: 14px 18px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -578,491 +860,478 @@
         }
 
         .settings-label {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 500;
         }
 
         .settings-help {
-            font-size: 12px;
+            font-size: 11px;
             color: var(--text-tertiary);
-            margin-top: 4px;
+            margin-top: 2px;
         }
 
         .settings-input {
-            padding: 10px 14px;
+            padding: 8px 12px;
             background: var(--bg-tertiary);
             border: 1px solid var(--border-subtle);
             border-radius: var(--radius-sm);
-            font-size: 13px;
+            font-size: 12px;
             font-family: 'JetBrains Mono', monospace;
             color: var(--text-primary);
-            min-width: 280px;
+            min-width: 240px;
         }
 
         .settings-input:focus {
             outline: none;
-            border-color: var(--accent);
+            border-color: var(--text-primary);
         }
 
         .settings-select {
-            padding: 10px 14px;
+            padding: 8px 12px;
             background: var(--bg-tertiary);
             border: 1px solid var(--border-subtle);
             border-radius: var(--radius-sm);
-            font-size: 13px;
-            font-family: inherit;
-            color: var(--text-primary);
-            min-width: 280px;
-            cursor: pointer;
-        }
-
-        .secondary-button {
-            padding: 10px 20px;
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border-default);
-            border-radius: var(--radius-sm);
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--text-primary);
-            font-family: inherit;
-            cursor: pointer;
-            transition: all 0.15s ease;
-        }
-
-        .secondary-button:hover {
-            background: var(--bg-hover);
-            border-color: var(--border-strong);
-        }
-
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--text-tertiary);
-        }
-
-        .empty-state svg {
-            width: 48px;
-            height: 48px;
-            margin-bottom: 16px;
-            opacity: 0.5;
-        }
-
-        /* Status Indicator in Header */
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .status-indicator {
-            display: flex;
-            align-items: center;
-            gap: 8px;
             font-size: 12px;
-            color: var(--text-tertiary);
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--success);
+            font-family: inherit;
+            color: var(--text-primary);
+            min-width: 240px;
         }
     </style>
 </head>
 
 <body>
-    <!-- Static Galaxy Background -->
+    <!-- Static Background -->
     <div class="bg-graphic">
         <svg viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
-            <!-- Stars -->
-            <circle cx="100" cy="100" r="1.5" fill="#333" />
-            <circle cx="200" cy="150" r="1" fill="#444" />
-            <circle cx="350" cy="80" r="2" fill="#333" />
-            <circle cx="500" cy="200" r="1.5" fill="#555" />
-            <circle cx="650" cy="120" r="1" fill="#444" />
-            <circle cx="800" cy="180" r="2" fill="#333" />
-            <circle cx="950" cy="90" r="1.5" fill="#555" />
-            <circle cx="1100" cy="160" r="1" fill="#444" />
-            <circle cx="150" cy="300" r="2" fill="#333" />
-            <circle cx="300" cy="350" r="1" fill="#555" />
-            <circle cx="450" cy="280" r="1.5" fill="#444" />
-            <circle cx="600" cy="400" r="2" fill="#333" />
-            <circle cx="750" cy="320" r="1" fill="#555" />
-            <circle cx="900" cy="380" r="1.5" fill="#444" />
-            <circle cx="1050" cy="300" r="1" fill="#333" />
-            <circle cx="80" cy="500" r="1.5" fill="#555" />
-            <circle cx="230" cy="550" r="2" fill="#333" />
-            <circle cx="380" cy="480" r="1" fill="#444" />
-            <circle cx="530" cy="600" r="1.5" fill="#555" />
-            <circle cx="680" cy="520" r="2" fill="#333" />
-            <circle cx="830" cy="580" r="1" fill="#444" />
-            <circle cx="980" cy="500" r="1.5" fill="#555" />
-            <circle cx="1130" cy="560" r="1" fill="#333" />
-            <circle cx="120" cy="700" r="1" fill="#444" />
-            <circle cx="270" cy="750" r="1.5" fill="#555" />
-            <circle cx="420" cy="680" r="2" fill="#333" />
-            <circle cx="570" cy="720" r="1" fill="#444" />
-            <circle cx="720" cy="760" r="1.5" fill="#555" />
-            <circle cx="870" cy="690" r="1" fill="#333" />
-            <circle cx="1020" cy="740" r="2" fill="#444" />
-            <!-- Constellation Lines -->
-            <line x1="100" y1="100" x2="200" y2="150" stroke="#333" stroke-width="0.5" />
-            <line x1="200" y1="150" x2="350" y2="80" stroke="#333" stroke-width="0.5" />
-            <line x1="500" y1="200" x2="650" y2="120" stroke="#333" stroke-width="0.5" />
-            <line x1="650" y1="120" x2="800" y2="180" stroke="#333" stroke-width="0.5" />
-            <line x1="150" y1="300" x2="300" y2="350" stroke="#333" stroke-width="0.5" />
-            <line x1="300" y1="350" x2="450" y2="280" stroke="#333" stroke-width="0.5" />
-            <line x1="600" y1="400" x2="750" y2="320" stroke="#333" stroke-width="0.5" />
-            <line x1="750" y1="320" x2="900" y2="380" stroke="#333" stroke-width="0.5" />
-            <line x1="230" y1="550" x2="380" y2="480" stroke="#333" stroke-width="0.5" />
-            <line x1="530" y1="600" x2="680" y2="520" stroke="#333" stroke-width="0.5" />
-            <line x1="680" y1="520" x2="830" y2="580" stroke="#333" stroke-width="0.5" />
-            <!-- Cross connections -->
-            <line x1="200" y1="150" x2="150" y2="300" stroke="#333" stroke-width="0.3" />
-            <line x1="650" y1="120" x2="600" y2="400" stroke="#333" stroke-width="0.3" />
-            <line x1="380" y1="480" x2="450" y2="280" stroke="#333" stroke-width="0.3" />
+            <circle cx="150" cy="120" r="2" fill="#333" />
+            <circle cx="300" cy="200" r="1.5" fill="#444" />
+            <circle cx="500" cy="100" r="2" fill="#333" />
+            <circle cx="700" cy="250" r="1.5" fill="#444" />
+            <circle cx="900" cy="150" r="2" fill="#333" />
+            <circle cx="1100" cy="220" r="1.5" fill="#444" />
+            <circle cx="200" cy="400" r="1.5" fill="#444" />
+            <circle cx="450" cy="350" r="2" fill="#333" />
+            <circle cx="650" cy="450" r="1.5" fill="#444" />
+            <circle cx="850" cy="380" r="2" fill="#333" />
+            <circle cx="1050" cy="420" r="1.5" fill="#444" />
+            <line x1="150" y1="120" x2="300" y2="200" stroke="#333" stroke-width="0.5" />
+            <line x1="300" y1="200" x2="500" y2="100" stroke="#333" stroke-width="0.5" />
+            <line x1="700" y1="250" x2="900" y2="150" stroke="#333" stroke-width="0.5" />
+            <line x1="200" y1="400" x2="450" y2="350" stroke="#333" stroke-width="0.5" />
+            <line x1="450" y1="350" x2="650" y2="450" stroke="#333" stroke-width="0.5" />
         </svg>
     </div>
 
-    <div class="app-container">
-        <!-- Header -->
-        <header class="app-header">
-            <div class="logo">
-                <svg class="logo-icon" viewBox="0 0 32 32" fill="none">
-                    <circle cx="16" cy="16" r="14" stroke="#1a1a1a" stroke-width="2" />
-                    <circle cx="10" cy="12" r="2" fill="#1a1a1a" />
-                    <circle cx="22" cy="10" r="1.5" fill="#1a1a1a" />
-                    <circle cx="18" cy="20" r="2" fill="#1a1a1a" />
-                    <circle cx="8" cy="22" r="1.5" fill="#1a1a1a" />
-                    <line x1="10" y1="12" x2="22" y2="10" stroke="#1a1a1a" stroke-width="1" />
-                    <line x1="22" y1="10" x2="18" y2="20" stroke="#1a1a1a" stroke-width="1" />
-                    <line x1="10" y1="12" x2="18" y2="20" stroke="#1a1a1a" stroke-width="1" />
-                    <line x1="10" y1="12" x2="8" y2="22" stroke="#1a1a1a" stroke-width="1" />
+    <div class="app-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <svg class="logo-icon" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="#1a1a1a" stroke-width="1.5" />
+                    <circle cx="8" cy="9" r="1.5" fill="#1a1a1a" />
+                    <circle cx="16" cy="8" r="1" fill="#1a1a1a" />
+                    <circle cx="14" cy="15" r="1.5" fill="#1a1a1a" />
+                    <circle cx="7" cy="16" r="1" fill="#1a1a1a" />
+                    <line x1="8" y1="9" x2="16" y2="8" stroke="#1a1a1a" stroke-width="0.75" />
+                    <line x1="16" y1="8" x2="14" y2="15" stroke="#1a1a1a" stroke-width="0.75" />
+                    <line x1="8" y1="9" x2="14" y2="15" stroke="#1a1a1a" stroke-width="0.75" />
                 </svg>
                 <span class="logo-text">Constellations</span>
             </div>
 
-            <div class="header-right">
-                <nav class="tab-nav">
-                    <button class="tab-button active" data-tab="search">Search</button>
-                    <button class="tab-button" data-tab="autonomous">Autonomous</button>
-                    <button class="tab-button" data-tab="files">Files</button>
-                    <button class="tab-button" data-tab="insights">Insights</button>
-                    <button class="tab-button" data-tab="settings">Settings</button>
-                </nav>
-                <div class="status-indicator">
-                    <span class="status-dot"></span>
-                    <span>Ready</span>
-                </div>
+            <nav class="sidebar-nav">
+                <button class="nav-item active" data-panel="home">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                        <polyline points="9 22 9 12 15 12 15 22" />
+                    </svg>
+                    Home
+                </button>
+                <button class="nav-item" data-panel="search">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="m21 21-4.35-4.35" />
+                    </svg>
+                    Search
+                </button>
+                <button class="nav-item" data-panel="files">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+                        <polyline points="13 2 13 9 20 9" />
+                    </svg>
+                    Files
+                </button>
+                <button class="nav-item" data-panel="autonomous">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <circle cx="12" cy="12" r="3" />
+                        <path
+                            d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48 2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48 2.83-2.83" />
+                    </svg>
+                    Autonomous
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button class="settings-button" data-panel="settings" title="Settings">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <circle cx="12" cy="12" r="3" />
+                        <path
+                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                    </svg>
+                </button>
             </div>
-        </header>
+        </aside>
 
         <!-- Main Content -->
         <main class="main-content">
-            <!-- Search Tab -->
-            <div class="tab-panel active" id="search">
-                <div class="section-header">
-                    <h1 class="section-title">Search</h1>
-                    <p class="section-subtitle">Query your knowledge base using natural language</p>
-                </div>
-
-                <div class="search-container">
-                    <div class="search-input-wrapper">
-                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="11" cy="11" r="8" />
-                            <path d="m21 21-4.35-4.35" />
-                        </svg>
-                        <input type="text" class="search-input" placeholder="Ask anything about your files...">
+            <div class="content-area">
+                <!-- Home Panel -->
+                <div class="panel active" id="home">
+                    <div class="home-greeting">
+                        <h1 class="greeting-text">Good evening</h1>
+                        <p class="greeting-sub">Here's what's happening with your knowledge base</p>
                     </div>
-                    <button class="primary-button">Search</button>
-                </div>
 
-                <div class="results-container">
-                    <div class="result-card">
-                        <div class="result-meta">
-                            <span class="result-source">product-strategy-2024.pdf</span>
-                            <span class="result-score">0.92 match</span>
+                    <div class="home-search">
+                        <input type="text" class="home-search-input" placeholder="Search your knowledge base...">
+                    </div>
+
+                    <div class="home-section">
+                        <div class="section-label">Your Goals</div>
+                        <div class="goals-list">
+                            <div class="goal-item">
+                                <div class="goal-checkbox"></div>
+                                <div class="goal-content">
+                                    <div class="goal-text">Analyze marketing documents and identify top performing
+                                        campaigns</div>
+                                    <div class="goal-meta">Added 2 days ago</div>
+                                </div>
+                            </div>
+                            <div class="goal-item">
+                                <div class="goal-checkbox"></div>
+                                <div class="goal-content">
+                                    <div class="goal-text">Create a weekly summary of product insights from all ingested
+                                        files</div>
+                                    <div class="goal-meta">Added 3 days ago</div>
+                                </div>
+                            </div>
+                            <div class="goal-item">
+                                <div class="goal-checkbox checked"></div>
+                                <div class="goal-content">
+                                    <div class="goal-text completed">Index all Q4 financial reports</div>
+                                    <div class="goal-meta">Completed</div>
+                                </div>
+                            </div>
+                            <div class="goal-input-row">
+                                <input type="text" class="goal-input" placeholder="Add a new goal...">
+                                <button class="goal-add-btn">Add</button>
+                            </div>
                         </div>
-                        <p class="result-text">The Q4 product roadmap focuses on three key areas: autonomous workflows,
-                            improved embedding accuracy, and enterprise-grade security features. We expect to ship the
-                            first autonomous agent capabilities by...</p>
                     </div>
-                    <div class="result-card">
-                        <div class="result-meta">
-                            <span class="result-source">marketing-notes.md</span>
-                            <span class="result-score">0.87 match</span>
+
+                    <div class="home-section">
+                        <div class="section-label">Recent Files</div>
+                        <div class="recent-files">
+                            <div class="recent-file-item">
+                                <div class="recent-file-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                        <path d="M14 2v6h6" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div class="recent-file-name">product-strategy-2024.pdf</div>
+                                    <div class="recent-file-path">~/brain/docs/</div>
+                                </div>
+                                <div class="recent-file-status">
+                                    <span class="status-badge indexed">Indexed</span>
+                                </div>
+                            </div>
+                            <div class="recent-file-item">
+                                <div class="recent-file-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                        <path d="M14 2v6h6" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div class="recent-file-name">marketing-notes.md</div>
+                                    <div class="recent-file-path">~/brain/notes/</div>
+                                </div>
+                                <div class="recent-file-status">
+                                    <span class="status-badge indexed">Indexed</span>
+                                </div>
+                            </div>
+                            <div class="recent-file-item">
+                                <div class="recent-file-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                        <path d="M14 2v6h6" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div class="recent-file-name">quarterly-report.xlsx</div>
+                                    <div class="recent-file-path">~/brain/reports/</div>
+                                </div>
+                                <div class="recent-file-status">
+                                    <span class="status-badge pending">Pending</span>
+                                </div>
+                            </div>
                         </div>
-                        <p class="result-text">Target audience analysis shows strong interest in productivity tools that
-                            can operate independently. Users value systems that learn from their existing work and
-                            generate new insights without constant supervision...</p>
                     </div>
                 </div>
-            </div>
 
-            <!-- Autonomous Tab -->
-            <div class="tab-panel" id="autonomous">
-                <div class="section-header">
-                    <h1 class="section-title">Autonomous</h1>
-                    <p class="section-subtitle">Set goals and let the system work in the background</p>
-                </div>
+                <!-- Search Panel -->
+                <div class="panel" id="search">
+                    <div class="page-header">
+                        <h1 class="page-title">Search</h1>
+                        <p class="page-subtitle">Query your knowledge base</p>
+                    </div>
 
-                <div class="autonomous-card">
-                    <div class="autonomous-header">
-                        <div class="autonomous-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path
-                                    d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48 2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48 2.83-2.83" />
+                    <div class="search-container">
+                        <div class="search-input-wrapper">
+                            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <circle cx="11" cy="11" r="8" />
+                                <path d="m21 21-4.35-4.35" />
                             </svg>
-                        </div>
-                        <div>
-                            <h3 class="autonomous-title">Define Your Goal</h3>
-                            <p class="autonomous-desc">Describe what you want the system to accomplish</p>
+                            <input type="text" class="search-input-large" placeholder="Ask anything...">
                         </div>
                     </div>
-                    <textarea class="goal-input"
-                        placeholder="Example: Analyze all my marketing documents and generate a comprehensive report on campaign performance trends over the last quarter. Include recommendations for improvement."></textarea>
-                    <button class="primary-button">Start Autonomous Task</button>
+
+                    <div class="results-list">
+                        <div class="result-card">
+                            <div class="result-source">product-strategy-2024.pdf</div>
+                            <div class="result-text">The Q4 product roadmap focuses on three key areas: autonomous
+                                workflows, improved embedding accuracy, and enterprise-grade security features...</div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-source">marketing-notes.md</div>
+                            <div class="result-text">Target audience analysis shows strong interest in productivity
+                                tools that can operate independently. Users value systems that learn from existing
+                                work...</div>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="autonomous-card">
-                    <div class="autonomous-header">
-                        <div class="autonomous-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M3 3v18h18" />
-                                <path d="m19 9-5 5-4-4-3 3" />
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="autonomous-title">Active Tasks</h3>
-                            <p class="autonomous-desc">No tasks currently running</p>
-                        </div>
+                <!-- Files Panel -->
+                <div class="panel" id="files">
+                    <div class="page-header">
+                        <h1 class="page-title">Files</h1>
+                        <p class="page-subtitle">Add and manage your knowledge base</p>
                     </div>
-                    <div class="empty-state">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <circle cx="12" cy="12" r="10" />
-                            <path d="M12 6v6l4 2" />
+
+                    <div class="drop-zone" id="dropZone">
+                        <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+                            <path d="M12 4v12" />
+                            <path d="m8 8 4-4 4 4" />
                         </svg>
-                        <p>Tasks you start will appear here</p>
+                        <div class="drop-title">Drop files here</div>
+                        <div class="drop-subtitle">PDF, Markdown, code files, and more</div>
                     </div>
-                </div>
-            </div>
 
-            <!-- Files Tab -->
-            <div class="tab-panel" id="files">
-                <div class="section-header">
-                    <h1 class="section-title">Files</h1>
-                    <p class="section-subtitle">Add files to your knowledge base</p>
-                </div>
-
-                <div class="drop-zone" id="dropZone">
-                    <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
-                        <path d="M12 4v12" />
-                        <path d="m8 8 4-4 4 4" />
-                    </svg>
-                    <p class="drop-title">Drop files here</p>
-                    <p class="drop-subtitle">Supports PDF, Markdown, code files, and more</p>
-                    <span class="drop-hint">~/Work/brain</span>
-                </div>
-            </div>
-
-            <!-- Insights Tab -->
-            <div class="tab-panel" id="insights">
-                <div class="section-header">
-                    <h1 class="section-title">Insights</h1>
-                    <p class="section-subtitle">View your indexed files and embedding data</p>
-                </div>
-
-                <div class="data-table-card">
-                    <div class="table-header">
-                        <span class="table-title">Knowledge Base</span>
-                        <span class="table-count">6 files indexed</span>
-                    </div>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>File</th>
-                                <th>Model</th>
-                                <th>Chunks</th>
-                                <th>Size</th>
-                                <th>Indexed</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>
-                                    <div class="file-cell">
-                                        <div class="file-icon-small">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                                <path d="M14 2v6h6" />
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <div class="file-name">product-strategy-2024.pdf</div>
-                                            <div class="file-path-link">~/brain/docs/product-strategy-2024.pdf</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="mono">nomic-embed-text</td>
-                                <td class="mono">24</td>
-                                <td class="mono numeric">2.4 MB</td>
-                                <td>Dec 14, 2:30 PM</td>
-                                <td><span class="status-badge indexed">Indexed</span></td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="file-cell">
-                                        <div class="file-icon-small">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                                <path d="M14 2v6h6" />
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <div class="file-name">marketing-campaign-notes.md</div>
-                                            <div class="file-path-link">~/brain/notes/marketing-notes.md</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="mono">nomic-embed-text</td>
-                                <td class="mono">8</td>
-                                <td class="mono numeric">156 KB</td>
-                                <td>Dec 14, 1:45 PM</td>
-                                <td><span class="status-badge indexed">Indexed</span></td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="file-cell">
-                                        <div class="file-icon-small">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <polyline points="16 18 22 12 16 6" />
-                                                <polyline points="8 6 2 12 8 18" />
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <div class="file-name">api-integration.ts</div>
-                                            <div class="file-path-link">~/brain/code/api-integration.ts</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="mono">nomic-embed-text</td>
-                                <td class="mono">12</td>
-                                <td class="mono numeric">34 KB</td>
-                                <td>Dec 14, 11:20 AM</td>
-                                <td><span class="status-badge indexed">Indexed</span></td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="file-cell">
-                                        <div class="file-icon-small">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                                <path d="M14 2v6h6" />
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <div class="file-name">quarterly-report.xlsx</div>
-                                            <div class="file-path-link">~/brain/reports/quarterly-report.xlsx</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="mono">—</td>
-                                <td class="mono">—</td>
-                                <td class="mono numeric">1.8 MB</td>
-                                <td>Processing...</td>
-                                <td><span class="status-badge pending">Pending</span></td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="file-cell">
-                                        <div class="file-icon-small">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <rect x="3" y="3" width="18" height="18" rx="2" />
-                                                <circle cx="8.5" cy="8.5" r="1.5" />
-                                                <path d="m21 15-5-5L5 21" />
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <div class="file-name">brand-guidelines.png</div>
-                                            <div class="file-path-link">~/brain/assets/brand-guidelines.png</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="mono">—</td>
-                                <td class="mono">—</td>
-                                <td class="mono numeric">4.2 MB</td>
-                                <td>Failed</td>
-                                <td><span class="status-badge error">Error</span></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Settings Tab -->
-            <div class="tab-panel" id="settings">
-                <div class="section-header">
-                    <h1 class="section-title">Settings</h1>
-                    <p class="section-subtitle">Configure your Constellations instance</p>
-                </div>
-
-                <div class="settings-section">
-                    <div class="settings-section-header">
-                        <div class="settings-section-title">Embedding Model</div>
-                        <div class="settings-section-desc">Choose the model used to process your files</div>
-                    </div>
-                    <div class="settings-row">
-                        <div>
-                            <div class="settings-label">Active Model</div>
-                            <div class="settings-help">This model will be used for all new embeddings</div>
+                    <div class="data-card">
+                        <div class="data-header">
+                            <span class="data-title">All Files</span>
+                            <span class="data-count">6 files</span>
                         </div>
-                        <select class="settings-select">
-                            <option>nomic-embed-text (768 dims)</option>
-                            <option>all-MiniLM-L6-v2 (384 dims)</option>
-                            <option>text-embedding-3-small (1536 dims)</option>
-                        </select>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>File</th>
+                                    <th>Model</th>
+                                    <th>Chunks</th>
+                                    <th>Size</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <div class="file-cell">
+                                            <div class="file-icon-sm">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="2">
+                                                    <path
+                                                        d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                                    <path d="M14 2v6h6" />
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <div class="file-name">product-strategy-2024.pdf</div>
+                                                <div class="file-path">~/brain/docs/product-strategy-2024.pdf</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="mono">nomic-embed</td>
+                                    <td class="mono">24</td>
+                                    <td class="mono">2.4 MB</td>
+                                    <td><span class="status-badge indexed">Indexed</span></td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div class="file-cell">
+                                            <div class="file-icon-sm">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="2">
+                                                    <path
+                                                        d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                                    <path d="M14 2v6h6" />
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <div class="file-name">marketing-notes.md</div>
+                                                <div class="file-path">~/brain/notes/marketing-notes.md</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="mono">nomic-embed</td>
+                                    <td class="mono">8</td>
+                                    <td class="mono">156 KB</td>
+                                    <td><span class="status-badge indexed">Indexed</span></td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div class="file-cell">
+                                            <div class="file-icon-sm">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="2">
+                                                    <polyline points="16 18 22 12 16 6" />
+                                                    <polyline points="8 6 2 12 8 18" />
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <div class="file-name">api-integration.ts</div>
+                                                <div class="file-path">~/brain/code/api-integration.ts</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="mono">nomic-embed</td>
+                                    <td class="mono">12</td>
+                                    <td class="mono">34 KB</td>
+                                    <td><span class="status-badge indexed">Indexed</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
-                <div class="settings-section">
-                    <div class="settings-section-header">
-                        <div class="settings-section-title">API Configuration</div>
-                        <div class="settings-section-desc">Connect to external services</div>
+                <!-- Autonomous Panel -->
+                <div class="panel" id="autonomous">
+                    <div class="page-header">
+                        <h1 class="page-title">Autonomous</h1>
+                        <p class="page-subtitle">The system is working on your goals</p>
                     </div>
-                    <div class="settings-row">
-                        <div>
-                            <div class="settings-label">OpenRouter API Key</div>
-                            <div class="settings-help">Used for LLM-powered features</div>
+
+                    <div class="autonomous-status">
+                        <div class="status-spinner"></div>
+                        <div class="status-info">
+                            <h3>Working on: Analyze marketing documents</h3>
+                            <p>Processing 12 files • Started 3 minutes ago</p>
                         </div>
-                        <input type="password" class="settings-input" placeholder="sk-or-..."
-                            value="sk-or-••••••••••••••••">
                     </div>
-                    <div class="settings-row">
-                        <div>
-                            <div class="settings-label">OpenAI API Key</div>
-                            <div class="settings-help">Optional: for OpenAI embedding models</div>
+
+                    <div class="autonomous-grid">
+                        <div class="auto-card">
+                            <div class="auto-card-header">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                                <span class="auto-card-title">Progress</span>
+                            </div>
+                            <div class="auto-card-content">
+                                <ul>
+                                    <li>Indexed product-strategy-2024.pdf</li>
+                                    <li>Extracted 24 semantic chunks</li>
+                                    <li>Identified 3 key themes</li>
+                                    <li>Cross-referenced with marketing-notes.md</li>
+                                </ul>
+                            </div>
                         </div>
-                        <input type="password" class="settings-input" placeholder="sk-...">
+                        <div class="auto-card next">
+                            <div class="auto-card-header">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <polyline points="12 6 12 12 16 14" />
+                                </svg>
+                                <span class="auto-card-title">Up Next</span>
+                            </div>
+                            <div class="auto-card-content">
+                                <ul>
+                                    <li>Process quarterly-report.xlsx</li>
+                                    <li>Generate campaign performance summary</li>
+                                    <li>Create insights document</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="guidance-section">
+                        <div class="guidance-label">Guide the Agent</div>
+                        <div class="guidance-input-row">
+                            <input type="text" class="guidance-input"
+                                placeholder="Give additional instructions or adjust the task...">
+                            <button class="guidance-send-btn">Send</button>
+                        </div>
                     </div>
                 </div>
 
-                <div class="settings-section">
-                    <div class="settings-section-header">
-                        <div class="settings-section-title">Storage</div>
-                        <div class="settings-section-desc">Where your knowledge base is stored</div>
+                <!-- Settings Panel -->
+                <div class="panel" id="settings">
+                    <div class="page-header">
+                        <h1 class="page-title">Settings</h1>
+                        <p class="page-subtitle">Configure your instance</p>
                     </div>
-                    <div class="settings-row">
-                        <div>
-                            <div class="settings-label">Brain Directory</div>
-                            <div class="settings-help">All ingested files are stored here</div>
+
+                    <div class="settings-section">
+                        <div class="settings-section-header">
+                            <div class="settings-section-title">Embedding Model</div>
                         </div>
-                        <div style="display: flex; gap: 8px;">
+                        <div class="settings-row">
+                            <div>
+                                <div class="settings-label">Active Model</div>
+                                <div class="settings-help">Used for processing new files</div>
+                            </div>
+                            <select class="settings-select">
+                                <option>nomic-embed-text</option>
+                                <option>all-MiniLM-L6-v2</option>
+                                <option>text-embedding-3-small</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <div class="settings-section-header">
+                            <div class="settings-section-title">API Keys</div>
+                        </div>
+                        <div class="settings-row">
+                            <div>
+                                <div class="settings-label">OpenRouter API Key</div>
+                                <div class="settings-help">For LLM features</div>
+                            </div>
+                            <input type="password" class="settings-input" placeholder="sk-or-..."
+                                value="sk-or-••••••••">
+                        </div>
+                        <div class="settings-row">
+                            <div>
+                                <div class="settings-label">OpenAI API Key</div>
+                                <div class="settings-help">Optional</div>
+                            </div>
+                            <input type="password" class="settings-input" placeholder="sk-...">
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <div class="settings-section-header">
+                            <div class="settings-section-title">Storage</div>
+                        </div>
+                        <div class="settings-row">
+                            <div>
+                                <div class="settings-label">Brain Directory</div>
+                                <div class="settings-help">Where files are stored</div>
+                            </div>
                             <input type="text" class="settings-input" value="~/Work/brain" readonly>
-                            <button class="secondary-button">Change</button>
                         </div>
                     </div>
                 </div>
@@ -1071,51 +1340,40 @@
     </div>
 
     <script>
-        // Tab switching
-        const tabButtons = document.querySelectorAll('.tab-button');
-        const tabPanels = document.querySelectorAll('.tab-panel');
+        // Navigation
+        document.querySelectorAll('.nav-item, .settings-button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const panelId = btn.dataset.panel;
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+                if (btn.classList.contains('nav-item')) {
+                    btn.classList.add('active');
+                }
+                document.getElementById(panelId).classList.add('active');
+            });
+        });
 
-        tabButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                const tabId = button.dataset.tab;
-
-                tabButtons.forEach(btn => btn.classList.remove('active'));
-                tabPanels.forEach(panel => panel.classList.remove('active'));
-
-                button.classList.add('active');
-                document.getElementById(tabId).classList.add('active');
+        // Goal checkbox toggle
+        document.querySelectorAll('.goal-checkbox').forEach(cb => {
+            cb.addEventListener('click', () => {
+                cb.classList.toggle('checked');
+                const text = cb.nextElementSibling.querySelector('.goal-text');
+                if (text) text.classList.toggle('completed');
             });
         });
 
         // Drop zone
         const dropZone = document.getElementById('dropZone');
-
-        dropZone.addEventListener('dragenter', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('hover');
-        });
-
-        dropZone.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('hover');
-        });
-
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-        });
-
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('hover');
-            dropZone.classList.add('success');
-            setTimeout(() => dropZone.classList.remove('success'), 2000);
-        });
+        if (dropZone) {
+            dropZone.addEventListener('dragenter', e => { e.preventDefault(); dropZone.classList.add('hover'); });
+            dropZone.addEventListener('dragleave', e => { e.preventDefault(); dropZone.classList.remove('hover'); });
+            dropZone.addEventListener('dragover', e => e.preventDefault());
+            dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('hover'); });
+        }
 
         // File path clicks
-        document.querySelectorAll('.file-path-link').forEach(el => {
-            el.addEventListener('click', () => {
-                alert('Would reveal in Finder:\n' + el.textContent);
-            });
+        document.querySelectorAll('.file-path').forEach(el => {
+            el.addEventListener('click', () => alert('Reveal in Finder: ' + el.textContent));
         });
     </script>
 </body>

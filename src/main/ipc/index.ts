@@ -11,6 +11,8 @@ import { registerBrainHandlers } from './handlers/brain'
 import { registerSearchHandlers } from './handlers/search'
 import { registerConfigHandlers } from './handlers/config'
 import { registerLogHandlers } from './handlers/logs'
+import { registerGoalsHandlers } from './handlers/goals'
+import { registerAgentHandlers } from './handlers/agent'
 
 /**
  * Register all IPC handlers with the main process
@@ -21,4 +23,6 @@ export function registerAllHandlers(ipcMain: IpcMain): void {
   registerSearchHandlers(ipcMain)
   registerConfigHandlers(ipcMain)
   registerLogHandlers(ipcMain)
+  registerGoalsHandlers()
+  registerAgentHandlers()
 }

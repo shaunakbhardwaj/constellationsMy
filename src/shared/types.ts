@@ -61,6 +61,48 @@ export interface SearchResponse {
 }
 
 /**
+ * Goal types for tracking user objectives
+ */
+export type GoalStatus = 'pending' | 'in_progress' | 'completed'
+
+export interface Goal {
+  id: string
+  text: string
+  status: GoalStatus
+  priority: number
+  createdAt: number
+  updatedAt: number
+  completedAt: number | null
+  autonomousEnabled: boolean
+  autonomousStartedAt: number | null
+  autonomousCompletedAt: number | null
+}
+
+export interface CreateGoalRequest {
+  text: string
+  priority?: number
+}
+
+export interface UpdateGoalRequest {
+  text?: string
+  status?: GoalStatus
+  priority?: number
+  autonomousEnabled?: boolean
+}
+
+export interface GoalsResponse {
+  success: boolean
+  goals?: Goal[]
+  error?: string
+}
+
+export interface GoalResponse {
+  success: boolean
+  goal?: Goal
+  error?: string
+}
+
+/**
  * API exposed to the renderer process via contextBridge.
  */
 export interface BrainAPI {
@@ -71,6 +113,58 @@ export interface BrainAPI {
   getConfig: () => Promise<ConfigResponse>
   setConfig: (config: Partial<AppConfig>) => Promise<ConfigResponse>
   resetConfig: () => Promise<ConfigResponse>
+
+  // Goals API
+  getGoals: () => Promise<GoalsResponse>
+  createGoal: (request: CreateGoalRequest) => Promise<GoalResponse>
+  updateGoal: (id: string, updates: UpdateGoalRequest) => Promise<GoalResponse>
+  deleteGoal: (id: string) => Promise<{ success: boolean; error?: string }>
+  toggleGoalComplete: (id: string) => Promise<GoalResponse>
+
+  // Agent API
+  getAgentState: () => Promise<AgentStateResponse>
+  startAgent: (goalId: string) => Promise<{ success: boolean; error?: string }>
+  pauseAgent: () => Promise<{ success: boolean; error?: string }>
+  resumeAgent: () => Promise<{ success: boolean; error?: string }>
+  stopAgent: () => Promise<{ success: boolean; error?: string }>
+  sendAgentGuidance: (guidance: string) => Promise<{ success: boolean; error?: string }>
+  onAgentStateChange: (callback: (state: AgentState) => void) => () => void
+}
+
+/**
+ * Agent types for autonomous processing
+ */
+export type AgentStatus = 'idle' | 'planning' | 'executing' | 'paused' | 'error' | 'completed'
+
+export interface ProgressItem {
+  id: string
+  description: string
+  completedAt: number
+  type: 'plan' | 'execute' | 'verify'
+}
+
+export interface PlanItem {
+  id: string
+  description: string
+  type: 'search' | 'index' | 'analyze' | 'summarize' | 'create'
+  order: number
+}
+
+export interface AgentState {
+  status: AgentStatus
+  currentGoalId: string | null
+  currentGoalText: string | null
+  currentTask: string | null
+  startedAt: number | null
+  progress: ProgressItem[]
+  upNext: PlanItem[]
+  error: string | null
+}
+
+export interface AgentStateResponse {
+  success: boolean
+  state?: AgentState
+  error?: string
 }
 
 export type ImportFilesRequest = {
@@ -113,4 +207,3 @@ export interface ConfigResponse {
   config?: AppConfig
   error?: string
 }
-
