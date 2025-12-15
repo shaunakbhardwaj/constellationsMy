@@ -1,12 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import type { AppConfig, LLMModel } from '../../../../shared/types'
-
-// Available embedding models
-const EMBEDDING_MODELS = [
-    { id: 'all-MiniLM-L6-v2', name: 'all-MiniLM-L6-v2 (Local)', provider: 'local' },
-    { id: 'nomic-embed-text', name: 'nomic-embed-text (Local)', provider: 'local' },
-    { id: 'text-embedding-3-small', name: 'OpenAI text-embedding-3-small', provider: 'openai' }
-]
+import type { AppConfig, LLMModel, EmbeddingModelInfo } from '../../../../shared/types'
 
 export function SettingsPanel(): React.JSX.Element {
     const [config, setConfig] = useState<AppConfig | null>(null)
@@ -24,25 +17,27 @@ export function SettingsPanel(): React.JSX.Element {
 
     // API key states
     const [openRouterKey, setOpenRouterKey] = useState('')
-    const [openAiKey, setOpenAiKey] = useState('')
-    const [hasOpenAiKey, setHasOpenAiKey] = useState(false)
+    const [geminiKey, setGeminiKey] = useState('')
+    const [hasGeminiKey, setHasGeminiKey] = useState(false)
 
-    // Local state for editing
-    const [selectedModel, setSelectedModel] = useState('')
+    // Embedding models state
+    const [embeddingModels, setEmbeddingModels] = useState<EmbeddingModelInfo[]>([])
+    const [activeEmbeddingModel, setActiveEmbeddingModel] = useState('')
+    const [downloadProgress, setDownloadProgress] = useState<Record<string, number>>({})
 
     // Load config and LLM info on mount
     useEffect(() => {
         const loadData = async (): Promise<void> => {
             try {
-                const [configResponse, modelsResponse, llmConfigResponse] = await Promise.all([
+                const [configResponse, modelsResponse, llmConfigResponse, embeddingModelsResponse] = await Promise.all([
                     window.api.getConfig(),
                     window.api.getLLMModels(),
-                    window.api.getLLMConfig()
+                    window.api.getLLMConfig(),
+                    window.api.getEmbeddingModels()
                 ])
 
                 if (configResponse.success && configResponse.config) {
                     setConfig(configResponse.config)
-                    setSelectedModel(configResponse.config.embedding.model)
                 } else {
                     throw new Error(configResponse.error ?? 'Failed to load config')
                 }
@@ -52,9 +47,15 @@ export function SettingsPanel(): React.JSX.Element {
                 }
 
                 if (llmConfigResponse.success && llmConfigResponse.config) {
-                    setHasLLMKey(llmConfigResponse.config.hasApiKey)
+                    setHasLLMKey(llmConfigResponse.config.hasOpenRouterKey)
+                    setHasGeminiKey(llmConfigResponse.config.hasGeminiKey)
                     setLlmReady(llmConfigResponse.config.isReady)
                     setSelectedLLMModel(llmConfigResponse.config.model)
+                }
+
+                if (embeddingModelsResponse.success && embeddingModelsResponse.models) {
+                    setEmbeddingModels(embeddingModelsResponse.models)
+                    setActiveEmbeddingModel(embeddingModelsResponse.activeModelId ?? '')
                 }
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Failed to load settings')
@@ -65,41 +66,80 @@ export function SettingsPanel(): React.JSX.Element {
         void loadData()
     }, [])
 
-    const handleSaveModel = useCallback(async () => {
-        if (!config || selectedModel === config.embedding.model) return
+    // Subscribe to download progress events
+    useEffect(() => {
+        const unsubscribe = window.api.onEmbeddingModelDownloadProgress((progress) => {
+            setDownloadProgress((prev) => ({
+                ...prev,
+                [progress.modelId]: progress.percent
+            }))
 
-        setSaving(true)
-        setSaveMessage(null)
+            // Refresh model list when download completes or fails
+            if (progress.status === 'complete' || progress.status === 'error') {
+                // Clear progress for this model
+                setDownloadProgress((prev) => {
+                    const next = { ...prev }
+                    delete next[progress.modelId]
+                    return next
+                })
 
-        try {
-            const response = await window.api.setConfig({
-                embedding: { model: selectedModel }
-            })
+                if (progress.status === 'error') {
+                    setError(`Failed to download model ${progress.modelId}`)
+                }
 
-            if (response.success && response.config) {
-                setConfig(response.config)
-                showMessage('Embedding model updated successfully')
-            } else {
-                throw new Error(response.error ?? 'Failed to save')
+                // Refresh the model list to update "downloading" status
+                window.api.getEmbeddingModels().then((res) => {
+                    if (res.success && res.models) {
+                        setEmbeddingModels(res.models)
+                        setActiveEmbeddingModel(res.activeModelId ?? '')
+                    }
+                })
             }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to save settings')
-        } finally {
-            setSaving(false)
-        }
-    }, [config, selectedModel])
+        })
+        return unsubscribe
+    }, [])
 
     const showMessage = (msg: string) => {
         setSaveMessage(msg)
         setTimeout(() => setSaveMessage(null), 3000)
     }
 
+    const handleDownloadModel = useCallback(async (modelId: string) => {
+        setSaving(true)
+        try {
+            // Start download - progress will be received via event
+            await window.api.downloadEmbeddingModel(modelId)
+            showMessage('Model downloaded successfully')
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to download model')
+        } finally {
+            setSaving(false)
+        }
+    }, [])
+
+    const handleSetActiveEmbeddingModel = useCallback(async (modelId: string) => {
+        setSaving(true)
+        try {
+            const response = await window.api.setActiveEmbeddingModel(modelId)
+            if (response.success) {
+                setActiveEmbeddingModel(modelId)
+                showMessage('Active embedding model updated')
+            } else {
+                setError(response.error ?? 'Failed to set active model')
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to set active model')
+        } finally {
+            setSaving(false)
+        }
+    }, [])
+
     const handleSaveOpenRouterKey = useCallback(async () => {
         if (!openRouterKey.trim()) return
 
         setSaving(true)
         try {
-            const response = await window.api.setLLMApiKey(openRouterKey)
+            const response = await window.api.setLLMApiKey(openRouterKey, 'openrouter')
             if (response.success) {
                 setHasLLMKey(true)
                 setLlmReady(true)
@@ -118,7 +158,7 @@ export function SettingsPanel(): React.JSX.Element {
     const handleClearOpenRouterKey = useCallback(async () => {
         setSaving(true)
         try {
-            const response = await window.api.clearLLMApiKey()
+            const response = await window.api.clearLLMApiKey('openrouter')
             if (response.success) {
                 setHasLLMKey(false)
                 setLlmReady(false)
@@ -167,14 +207,40 @@ export function SettingsPanel(): React.JSX.Element {
         }
     }, [llmReady])
 
-    const handleSaveOpenAiKey = useCallback(async () => {
-        if (!openAiKey.trim()) return
-        // Placeholder - OpenAI key storage not yet implemented
-        console.log('Would save OpenAI key:', openAiKey.substring(0, 8) + '...')
-        setHasOpenAiKey(true)
-        setOpenAiKey('')
-        showMessage('OpenAI API key saved')
-    }, [openAiKey])
+    const handleSaveGeminiKey = useCallback(async () => {
+        if (!geminiKey.trim()) return
+
+        setSaving(true)
+        try {
+            const response = await window.api.setLLMApiKey(geminiKey, 'gemini')
+            if (response.success) {
+                setHasGeminiKey(true)
+                setGeminiKey('')
+                showMessage('Gemini API key saved successfully')
+            } else {
+                setError(response.error ?? 'Failed to save Gemini key')
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to save Gemini key')
+        } finally {
+            setSaving(false)
+        }
+    }, [geminiKey])
+
+    const handleClearGeminiKey = useCallback(async () => {
+        setSaving(true)
+        try {
+            const response = await window.api.clearLLMApiKey('gemini')
+            if (response.success) {
+                setHasGeminiKey(false)
+                showMessage('Gemini API key cleared')
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to clear Gemini key')
+        } finally {
+            setSaving(false)
+        }
+    }, [])
 
     if (loading) {
         return (
@@ -322,31 +388,107 @@ export function SettingsPanel(): React.JSX.Element {
             {/* Embedding Model Section */}
             <div className="settings-section">
                 <div className="settings-section-header">
-                    <div className="settings-section-title">Embedding Model</div>
+                    <div className="settings-section-title">Embedding Models</div>
+                    <span
+                        style={{
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: 500,
+                            background: 'var(--bg-tertiary)',
+                            color: 'var(--text-tertiary)'
+                        }}
+                    >
+                        Local Processing
+                    </span>
                 </div>
-                <div className="settings-row">
-                    <div>
-                        <div className="settings-label">Active Model</div>
-                        <div className="settings-help">Used for processing new files</div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <select
-                            className="settings-select"
-                            value={selectedModel}
-                            onChange={(e) => setSelectedModel(e.target.value)}
+                <div className="settings-help" style={{ marginBottom: '12px' }}>
+                    Embedding models convert your documents into vectors for semantic search. Download a model to enable it.
+                </div>
+
+                {/* Model list */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {embeddingModels.map((model) => (
+                        <div
+                            key={model.id}
+                            onClick={() => {
+                                if (model.downloaded && !model.downloading && activeEmbeddingModel !== model.id) {
+                                    handleSetActiveEmbeddingModel(model.id)
+                                }
+                            }}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '12px 16px',
+                                background: activeEmbeddingModel === model.id ? 'var(--accent-light)' : 'var(--bg-secondary)',
+                                borderRadius: 'var(--radius-md)',
+                                border: activeEmbeddingModel === model.id ? '1px solid var(--accent)' : '1px solid transparent',
+                                cursor: model.downloaded && !model.downloading ? 'pointer' : 'default',
+                                opacity: model.downloading ? 0.7 : 1,
+                                transition: 'all 0.2s ease'
+                            }}
                         >
-                            {EMBEDDING_MODELS.map((model) => (
-                                <option key={model.id} value={model.id}>
-                                    {model.name}
-                                </option>
-                            ))}
-                        </select>
-                        {selectedModel !== config?.embedding.model && (
-                            <button className="settings-btn" onClick={handleSaveModel} disabled={saving} type="button">
-                                {saving ? 'Saving...' : 'Save'}
-                            </button>
-                        )}
-                    </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+                                <input
+                                    type="radio"
+                                    name="embeddingModel"
+                                    checked={activeEmbeddingModel === model.id}
+                                    readOnly // Managed by parent onClick
+                                    disabled={!model.downloaded || model.downloading}
+                                    style={{ margin: 0, cursor: 'inherit' }}
+                                />
+                                <div>
+                                    <div style={{ fontWeight: 500, fontSize: '14px' }}>
+                                        {model.name}
+                                        {activeEmbeddingModel === model.id && (
+                                            <span
+                                                style={{
+                                                    marginLeft: '8px',
+                                                    padding: '2px 6px',
+                                                    background: 'var(--accent)',
+                                                    color: 'white',
+                                                    borderRadius: '4px',
+                                                    fontSize: '10px'
+                                                }}
+                                            >
+                                                Active
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
+                                        {model.description} • {(model.sizeBytes / 1_000_000).toFixed(0)} MB • {model.dimensions}d
+                                    </div>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                {model.downloading || downloadProgress[model.id] !== undefined ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <div className="loading-spinner" style={{ width: '16px', height: '16px' }} />
+                                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                            {downloadProgress[model.id] !== undefined && downloadProgress[model.id] > 0
+                                                ? `${downloadProgress[model.id]}%`
+                                                : 'Downloading...'}
+                                        </span>
+                                    </div>
+                                ) : model.downloaded ? (
+                                    <span style={{ color: 'var(--success)', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <span style={{ fontSize: '14px' }}>✓</span> Downloaded
+                                    </span>
+                                ) : (
+                                    <button
+                                        className="settings-btn"
+                                        onClick={() => handleDownloadModel(model.id)}
+                                        disabled={saving}
+                                        type="button"
+                                        style={{ minWidth: '80px' }}
+                                    >
+                                        Download
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </div>
 
@@ -357,25 +499,36 @@ export function SettingsPanel(): React.JSX.Element {
                 </div>
                 <div className="settings-row">
                     <div>
-                        <div className="settings-label">OpenAI API Key</div>
-                        <div className="settings-help">Optional - for direct OpenAI embeddings</div>
+                        <div className="settings-label">Gemini API Key</div>
+                        <div className="settings-help">Optional - for future Gemini AI features</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <input
-                            type="password"
-                            className="settings-input"
-                            placeholder={hasOpenAiKey ? 'sk-••••••••' : 'sk-...'}
-                            value={openAiKey}
-                            onChange={(e) => setOpenAiKey(e.target.value)}
-                        />
-                        <button
-                            className="settings-btn"
-                            onClick={handleSaveOpenAiKey}
-                            disabled={!openAiKey.trim()}
-                            type="button"
-                        >
-                            Save
-                        </button>
+                        {hasGeminiKey ? (
+                            <>
+                                <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>AI••••••••</span>
+                                <button className="btn-ghost" onClick={handleClearGeminiKey} disabled={saving} type="button">
+                                    Clear
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <input
+                                    type="password"
+                                    className="settings-input"
+                                    placeholder="AI..."
+                                    value={geminiKey}
+                                    onChange={(e) => setGeminiKey(e.target.value)}
+                                />
+                                <button
+                                    className="settings-btn"
+                                    onClick={handleSaveGeminiKey}
+                                    disabled={!geminiKey.trim() || saving}
+                                    type="button"
+                                >
+                                    Save
+                                </button>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
