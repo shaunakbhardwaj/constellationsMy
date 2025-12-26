@@ -13,7 +13,7 @@ import type {
 const log = createLogger('main/llm')
 
 // Default model to use if none configured
-const DEFAULT_MODEL = 'anthropic/claude-3-haiku'
+const DEFAULT_MODEL = 'deepseek/deepseek-r1-0528:free'
 
 /**
  * LLMService provides high-level LLM operations for the agent

@@ -1,220 +1,128 @@
+import { existsSync, readdirSync, readFileSync, statSync } from 'fs'
+import { join } from 'path'
 import type Database from 'better-sqlite3'
 import { createLogger } from '../../shared/logger'
 
-const log = createLogger('main/db/migrations')
-
-interface MigrationDefinition {
+type Migration = {
   version: number
   name: string
+  filename: string
+  filepath: string
   sql: string
 }
 
-interface AppliedMigration {
-  version: number
-  name: string
-  applied_at: number
+const log = createLogger('main/db/migrate')
+const MIGRATION_FILENAME = /^(\d+)_([a-z0-9_]+)\.sql$/i
+const SCHEMA_TABLE_SQL = `
+  CREATE TABLE IF NOT EXISTS schema_versions (
+    version INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    applied_at INTEGER NOT NULL
+  );
+`
+
+function ensureSchemaVersionsTable(db: Database.Database): void {
+  db.exec(SCHEMA_TABLE_SQL)
 }
 
-/**
- * Embedded migrations - these are compiled into the code to avoid
- * filesystem path resolution issues with Electron bundling.
- * 
- * To add a new migration:
- * 1. Add a new object to this array with the next version number
- * 2. Use CREATE TABLE IF NOT EXISTS for new tables
- * 3. Use standard SQLite ALTER TABLE for schema changes
- */
-const MIGRATIONS: MigrationDefinition[] = [
-  {
-    version: 1,
-    name: 'initial',
-    sql: `
--- Migration 001: Initial Schema
--- Tracks every file/folder in the brain directory
-CREATE TABLE IF NOT EXISTS files (
-  id TEXT PRIMARY KEY,
-  path TEXT UNIQUE NOT NULL,
-  relative_path TEXT NOT NULL,
-  type TEXT NOT NULL,
-  mime_type TEXT,
-  size_bytes INTEGER,
-  checksum TEXT,
-  created_at INTEGER NOT NULL,
-  modified_at INTEGER NOT NULL,
-  last_indexed_at INTEGER,
-  indexed_status TEXT DEFAULT 'pending',
-  error_message TEXT
-);
+function resolveMigrationsDir(): { dir: string | null; candidates: string[] } {
+  const candidates = [
+    join(__dirname, 'migrations'),
+    join(process.cwd(), 'src', 'main', 'db', 'migrations')
+  ]
 
--- Tracks individual chunks/embeddings
-CREATE TABLE IF NOT EXISTS chunks (
-  id TEXT PRIMARY KEY,
-  file_id TEXT NOT NULL,
-  chunk_index INTEGER NOT NULL,
-  text TEXT NOT NULL,
-  char_start INTEGER,
-  char_end INTEGER,
-  token_count INTEGER,
-  created_at INTEGER NOT NULL,
-  FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE
-);
-
--- Indexes for fast lookups
-CREATE INDEX IF NOT EXISTS idx_files_path ON files(path);
-CREATE INDEX IF NOT EXISTS idx_files_status ON files(indexed_status);
-CREATE INDEX IF NOT EXISTS idx_chunks_file ON chunks(file_id);
-    `
-  },
-  {
-    version: 2,
-    name: 'goals',
-    sql: `
--- Migration 002: Goals System
--- Goals table for tracking user objectives
-CREATE TABLE IF NOT EXISTS goals (
-  id TEXT PRIMARY KEY,
-  text TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'pending',
-  priority INTEGER DEFAULT 0,
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL,
-  completed_at INTEGER,
-  autonomous_enabled INTEGER DEFAULT 0,
-  autonomous_started_at INTEGER,
-  autonomous_completed_at INTEGER
-);
-
--- Goal progress tracking for autonomous execution
-CREATE TABLE IF NOT EXISTS goal_progress (
-  id TEXT PRIMARY KEY,
-  goal_id TEXT NOT NULL,
-  step_type TEXT NOT NULL,
-  description TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'pending',
-  output TEXT,
-  created_at INTEGER NOT NULL,
-  completed_at INTEGER,
-  FOREIGN KEY (goal_id) REFERENCES goals(id) ON DELETE CASCADE
-);
-
--- Indexes for faster goal queries
-CREATE INDEX IF NOT EXISTS idx_goals_status ON goals(status);
-CREATE INDEX IF NOT EXISTS idx_goals_created_at ON goals(created_at);
-CREATE INDEX IF NOT EXISTS idx_goal_progress_goal_id ON goal_progress(goal_id);
-    `
+  for (const candidate of candidates) {
+    if (existsSync(candidate) && statSync(candidate).isDirectory()) {
+      return { dir: candidate, candidates }
+    }
   }
-  // Add future migrations here:
-  // {
-  //   version: 3,
-  //   name: 'agent_state',
-  //   sql: `...`
-  // }
-]
 
-/**
- * Ensure the schema_versions table exists
- */
-function ensureVersionTable(db: Database.Database): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS schema_versions (
-      version INTEGER PRIMARY KEY,
-      name TEXT NOT NULL,
-      applied_at INTEGER NOT NULL
-    )
-  `)
+  return { dir: null, candidates }
 }
 
-/**
- * Get all applied migrations from the database
- */
-function getAppliedMigrations(db: Database.Database): AppliedMigration[] {
-  const rows = db.prepare(`
-    SELECT version, name, applied_at FROM schema_versions ORDER BY version ASC
-  `).all() as AppliedMigration[]
-  
-  return rows
-}
+function loadMigrations(): Migration[] {
+  const { dir: migrationsDir, candidates } = resolveMigrationsDir()
 
-/**
- * Apply a single migration within a transaction
- */
-function applyMigration(db: Database.Database, migration: MigrationDefinition): void {
-  log.info('Applying migration', { version: migration.version, name: migration.name })
-  
-  const runMigration = db.transaction(() => {
-    // Execute the migration SQL
-    db.exec(migration.sql)
-    
-    // Record the migration as applied
-    db.prepare(`
-      INSERT INTO schema_versions (version, name, applied_at) VALUES (?, ?, ?)
-    `).run(migration.version, migration.name, Date.now())
-  })
-  
-  runMigration()
-  
-  log.info('Migration applied successfully', { version: migration.version, name: migration.name })
-}
-
-/**
- * Run all pending migrations
- * @returns The number of migrations applied
- */
-export function runMigrations(db: Database.Database): number {
-  // Ensure we have the version tracking table
-  ensureVersionTable(db)
-  
-  // Get applied migrations
-  const applied = getAppliedMigrations(db)
-  const appliedVersions = new Set(applied.map(m => m.version))
-  
-  // Find pending migrations from embedded list
-  const pending = MIGRATIONS.filter(m => !appliedVersions.has(m.version))
-  
-  if (pending.length === 0) {
-    const currentVersion = applied.length > 0 ? applied[applied.length - 1].version : 0
-    log.info('Database schema up to date', { currentVersion, appliedCount: applied.length })
-    return 0
+  if (!migrationsDir) {
+    log.warn('migrations directory not found', { candidates })
+    return []
   }
-  
-  log.info('Running pending migrations', { 
-    pendingCount: pending.length, 
-    versions: pending.map(m => m.version) 
-  })
-  
-  // Apply each pending migration
-  for (const migration of pending) {
-    applyMigration(db, migration)
+
+  const files = readdirSync(migrationsDir)
+  const migrations: Migration[] = []
+
+  for (const filename of files) {
+    if (!filename.endsWith('.sql')) continue
+    const match = filename.match(MIGRATION_FILENAME)
+    if (!match) {
+      log.warn('skipping migration with invalid name', { filename })
+      continue
+    }
+
+    const version = Number(match[1])
+    const name = match[2]
+    const filepath = join(migrationsDir, filename)
+    const sql = readFileSync(filepath, 'utf-8')
+
+    migrations.push({ version, name, filename, filepath, sql })
   }
-  
-  const newVersion = pending[pending.length - 1].version
-  log.info('All migrations applied', { newVersion, appliedCount: pending.length })
-  
-  return pending.length
+
+  migrations.sort((a, b) => a.version - b.version)
+  return migrations
 }
 
-/**
- * Get the current schema version
- */
+function getAppliedVersions(db: Database.Database): Set<number> {
+  ensureSchemaVersionsTable(db)
+  const rows = db.prepare('SELECT version FROM schema_versions').all() as Array<{ version: number }>
+  return new Set(rows.map((row) => row.version))
+}
+
 export function getCurrentSchemaVersion(db: Database.Database): number {
-  ensureVersionTable(db)
-  
-  const row = db.prepare(`
-    SELECT MAX(version) as version FROM schema_versions
-  `).get() as { version: number | null } | undefined
-  
+  ensureSchemaVersionsTable(db)
+  const row = db
+    .prepare('SELECT MAX(version) as version FROM schema_versions')
+    .get() as { version?: number | null } | undefined
   return row?.version ?? 0
 }
 
-/**
- * Check if there are pending migrations
- */
 export function hasPendingMigrations(db: Database.Database): boolean {
-  ensureVersionTable(db)
-  
-  const applied = getAppliedMigrations(db)
-  const appliedVersions = new Set(applied.map(m => m.version))
-  
-  return MIGRATIONS.some(m => !appliedVersions.has(m.version))
+  const migrations = loadMigrations()
+  if (migrations.length === 0) return false
+  const applied = getAppliedVersions(db)
+  return migrations.some((migration) => !applied.has(migration.version))
 }
 
+export function runMigrations(db: Database.Database): number {
+  ensureSchemaVersionsTable(db)
+  const migrations = loadMigrations()
+  if (migrations.length === 0) return 0
+
+  const applied = getAppliedVersions(db)
+  const insertStmt = db.prepare(
+    'INSERT INTO schema_versions (version, name, applied_at) VALUES (?, ?, ?)'
+  )
+
+  const applyMigration = db.transaction((migration: Migration) => {
+    const trimmed = migration.sql.trim()
+    if (trimmed.length === 0) {
+      log.warn('migration file is empty', { filename: migration.filename })
+    } else {
+      db.exec(migration.sql)
+    }
+    insertStmt.run(migration.version, migration.name, Date.now())
+  })
+
+  let appliedCount = 0
+  for (const migration of migrations) {
+    if (applied.has(migration.version)) continue
+    log.info('applying migration', { version: migration.version, name: migration.name })
+    applyMigration(migration)
+    appliedCount += 1
+  }
+
+  if (appliedCount > 0) {
+    log.info('migrations applied', { count: appliedCount })
+  }
+
+  return appliedCount
+}

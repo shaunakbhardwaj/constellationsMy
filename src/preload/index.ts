@@ -208,6 +208,20 @@ const api: BrainAPI = {
       return { success: false, error: error instanceof Error ? error.message : 'Failed to get key status' }
     }
   },
+  getStoredLLMApiKey: async (provider = 'openrouter') => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('llm-get-api-key', provider)
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to get stored API key' }
+    }
+  },
+  revealStoredLLMApiKey: async (provider = 'openrouter') => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('llm-reveal-api-key', provider)
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to reveal API key' }
+    }
+  },
   setLLMApiKey: async (apiKey, provider = 'openrouter') => {
     try {
       return await electronAPI.ipcRenderer.invoke('llm-set-api-key', apiKey, provider)
@@ -270,6 +284,34 @@ const api: BrainAPI = {
     const handler = (_event: unknown, progress: unknown) => callback(progress as import('../shared/types').ScanProgress)
     electronAPI.ipcRenderer.on('scan-progress', handler)
     return () => electronAPI.ipcRenderer.removeListener('scan-progress', handler)
+  },
+
+  // Experiment API
+  processExperimentDocs: async (filePaths) => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('experiment-process-docs', filePaths)
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to process documents' }
+    }
+  },
+  runExperimentQuery: async (request) => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('experiment-query', request)
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Query failed' }
+    }
+  },
+  clearExperiment: async () => {
+    try {
+      return await electronAPI.ipcRenderer.invoke('experiment-clear')
+    } catch (error) {
+      return { success: false }
+    }
+  },
+  onExperimentProgress: (callback) => {
+    const handler = (_event: unknown, progress: unknown) => callback(progress as import('../shared/types').ExperimentProgress)
+    electronAPI.ipcRenderer.on('experiment-progress', handler)
+    return () => electronAPI.ipcRenderer.removeListener('experiment-progress', handler)
   }
 }
 

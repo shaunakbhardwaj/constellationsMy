@@ -1,343 +1,366 @@
-import { readFile, stat } from 'fs/promises'
+import { promises as fs } from 'fs'
+import { extname } from 'path'
+import { createHash } from 'crypto'
 import { v4 as uuidv4 } from 'uuid'
+import type Database from 'better-sqlite3'
+import type * as lancedb from '@lancedb/lancedb'
 import { getSQLite, getLanceDB } from '../db'
-import { generateEmbeddingsInWorker } from '../workers/worker-manager'
-import { splitTextIntoChunks } from './splitter'
-import { createLogger } from '../../shared/logger'
 import { getConfig } from '../config'
-
-const SUPPORTED_FILE_REGEX = /\.(txt|md|json|js|ts|tsx|jsx|css|html|py|rs)$/i
-const DOCUMENT_TABLE = 'documents'
-
-// UUID v4 validation regex
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+import { splitTextIntoChunks } from './splitter'
+import { extractPdfText } from './pdf'
+import { generateEmbeddingsInWorker } from '../workers/worker-manager'
+import { createLogger } from '../../shared/logger'
 
 const log = createLogger('main/ingestion')
+const DOCUMENT_TABLE = 'documents'
 
-// Retry configuration for transient failures
-const MAX_RETRIES = 3
-const RETRY_DELAY_MS = 1000
+const TEXT_EXTENSIONS = new Set([
+  '.txt',
+  '.md',
+  '.markdown',
+  '.json',
+  '.js',
+  '.jsx',
+  '.ts',
+  '.tsx',
+  '.html',
+  '.css',
+  '.csv',
+  '.yml',
+  '.yaml'
+])
 
-function isValidUUID(id: string): boolean {
-  return UUID_REGEX.test(id)
+type ExistingFileRow = {
+  id: string
+  createdAt: number
 }
 
-/**
- * Sleep for a given number of milliseconds
- */
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms))
+type ChunkRow = {
+  id: string
+  fileId: string
+  chunkIndex: number
+  text: string
+  charStart: number | null
+  charEnd: number | null
+  tokenCount: number | null
+  createdAt: number
 }
 
-/**
- * Retry a function with exponential backoff
- */
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  operation: string,
-  maxRetries: number = MAX_RETRIES
-): Promise<T> {
-  let lastError: Error | undefined
-  
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await fn()
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error))
-      
-      if (attempt < maxRetries) {
-        const delay = RETRY_DELAY_MS * Math.pow(2, attempt - 1)
-        log.warn('Operation failed, retrying', { 
-          operation, 
-          attempt, 
-          maxRetries, 
-          delayMs: delay,
-          error: lastError.message 
-        })
-        await sleep(delay)
-      }
-    }
-  }
-  
-  throw lastError
-}
-
-/**
- * Safely read a file with size limit to prevent memory overflow.
- * Throws an error if the file exceeds MAX_FILE_SIZE.
- */
-async function readFileSafe(filePath: string, fileStats: Awaited<ReturnType<typeof stat>>): Promise<string> {
-  const maxFileSize = getConfig().ingestion.maxFileSize
-  if (fileStats.size > maxFileSize) {
-    const sizeMB = Math.round(Number(fileStats.size) / 1024 / 1024)
-    const limitMB = Math.round(maxFileSize / 1024 / 1024)
-    throw new Error(`File too large for indexing (${sizeMB}MB > ${limitMB}MB limit)`)
-  }
-  return await readFile(filePath, 'utf-8')
-}
-
-/**
- * Delete embeddings from LanceDB for a specific file
- */
-export async function deleteFileEmbeddings(fileId: string): Promise<void> {
-  if (!isValidUUID(fileId)) {
-    throw new Error(`Invalid file ID format: ${fileId}`)
-  }
-  
-  const lance = getLanceDB()
-  
-  try {
-    const table = await lance.openTable(DOCUMENT_TABLE)
-    await table.delete(`file_id = '${fileId}'`)
-    log.info('Deleted file embeddings from LanceDB', { fileId })
-  } catch (error) {
-    // Table might not exist, which is fine
-    log.warn('Could not delete LanceDB embeddings', { fileId, error })
+function getMimeType(extension: string): string | null {
+  switch (extension) {
+    case '.txt':
+      return 'text/plain'
+    case '.md':
+    case '.markdown':
+      return 'text/markdown'
+    case '.json':
+      return 'application/json'
+    case '.js':
+      return 'application/javascript'
+    case '.jsx':
+      return 'text/jsx'
+    case '.ts':
+      return 'text/typescript'
+    case '.tsx':
+      return 'text/tsx'
+    case '.html':
+      return 'text/html'
+    case '.css':
+      return 'text/css'
+    case '.csv':
+      return 'text/csv'
+    case '.yml':
+    case '.yaml':
+      return 'text/yaml'
+    case '.pdf':
+      return 'application/pdf'
+    default:
+      return null
   }
 }
 
-/**
- * Process a file for indexing with transaction safety.
- * 
- * This function implements a two-phase commit strategy:
- * 1. PREPARE: Generate all embeddings (expensive, can fail)
- * 2. COMMIT: Write to LanceDB, then commit SQLite transaction
- * 3. CLEANUP: Delete old embeddings only after success
- * 
- * This ensures data integrity by:
- * - Not deleting old data until new data is confirmed
- * - Using SQLite transactions for atomic updates
- * - Providing retry logic for transient failures
- */
-export async function processFile(filePath: string, relativePath: string): Promise<void> {
-  const db = getSQLite()
-  const lance = getLanceDB()
+function getExistingFile(db: Database.Database, filePath: string): ExistingFileRow | undefined {
+  return db
+    .prepare<[string], ExistingFileRow>('SELECT id, created_at AS createdAt FROM files WHERE path = ?')
+    .get(filePath)
+}
 
-  const startedAt = Date.now()
-  log.info('processFile start', { relativePath, filePath })
+function upsertProcessingFile(
+  db: Database.Database,
+  fileId: string,
+  filePath: string,
+  relativePath: string,
+  createdAt: number,
+  modifiedAt: number,
+  sizeBytes: number,
+  mimeType: string | null
+): void {
+  const existing = db.prepare('SELECT id FROM files WHERE id = ?').get(fileId) as { id: string } | undefined
 
-  if (!SUPPORTED_FILE_REGEX.test(filePath)) {
-    log.info('processFile skipped (unsupported extension)', { relativePath, filePath })
-    return
-  }
-
-  // Check if file already exists
-  const existing = db.prepare('SELECT id FROM files WHERE path = ?').get(filePath) as { id: string } | undefined
-  const fileId = existing?.id ?? uuidv4()
-  const isUpdate = Boolean(existing)
-  
-  const stats = await stat(filePath)
-  log.info('processFile file stats', {
-    relativePath,
-    fileId,
-    existed: isUpdate,
-    sizeBytes: stats.size,
-    mtimeMs: Math.floor(stats.mtimeMs)
-  })
-
-  // ============================================================
-  // PHASE 1: PREPARE - Generate all embeddings before any writes
-  // ============================================================
-  
-  let content: string
-  let chunks: string[]
-  let embeddingData: Array<{ vector: number[]; text: string; file_id: string; chunk_index: number }> = []
-  
-  try {
-    // Mark as processing first (outside transaction for visibility)
-    const markProcessing = db.prepare(`
-      INSERT INTO files (
-        id, path, relative_path, type, size_bytes, created_at, modified_at, indexed_status
-      )
-      VALUES (?, ?, ?, 'file', ?, ?, ?, 'processing')
-      ON CONFLICT(path) DO UPDATE SET
-        size_bytes = excluded.size_bytes,
-        modified_at = excluded.modified_at,
-        indexed_status = 'processing',
+  if (existing) {
+    db.prepare(
+      `
+      UPDATE files
+      SET
+        relative_path = ?,
+        type = ?,
+        mime_type = ?,
+        size_bytes = ?,
+        modified_at = ?,
+        indexed_status = ?,
         error_message = NULL
-    `)
-    
-    markProcessing.run(
+      WHERE id = ?
+    `
+    ).run(relativePath, 'file', mimeType, sizeBytes, modifiedAt, 'processing', fileId)
+  } else {
+    db.prepare(
+      `
+      INSERT INTO files (
+        id,
+        path,
+        relative_path,
+        type,
+        mime_type,
+        size_bytes,
+        created_at,
+        modified_at,
+        indexed_status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `
+    ).run(
       fileId,
       filePath,
       relativePath,
-      stats.size,
-      Math.floor(stats.birthtimeMs ?? Date.now()),
-      Math.floor(stats.mtimeMs)
-    )
-
-    content = await readFileSafe(filePath, stats)
-    const config = getConfig()
-    chunks = splitTextIntoChunks(content, config.ingestion.chunkSize)
-    log.info('processFile split into chunks', { relativePath, fileId, chunkCount: chunks.length })
-
-    if (chunks.length === 0) {
-      // No chunks to process - just mark as indexed
-      db.prepare(
-        "UPDATE files SET indexed_status = 'indexed', last_indexed_at = ?, error_message = NULL WHERE id = ?"
-      ).run(Date.now(), fileId)
-      log.info('processFile completed (no chunks)', { relativePath, fileId, durationMs: Date.now() - startedAt })
-      return
-    }
-
-    // Generate all embeddings BEFORE any destructive operations
-    const batchSize = config.ingestion.batchSize
-    for (let batchStart = 0; batchStart < chunks.length; batchStart += batchSize) {
-      const batch = chunks.slice(batchStart, batchStart + batchSize)
-      const batchStartedAt = Date.now()
-      log.info('processFile embeddings batch start', {
-        relativePath,
-        fileId,
-        batchStart,
-        batchSize: batch.length,
-        totalChunks: chunks.length
-      })
-      
-      // Use retry logic for embedding generation (can fail due to model loading, OOM, etc.)
-      const vectors = await withRetry(
-        () => generateEmbeddingsInWorker(batch),
-        `embedding generation batch ${batchStart}`
-      )
-      
-      log.info('processFile embeddings batch done', {
-        relativePath,
-        fileId,
-        batchStart,
-        vectorsCount: vectors.length,
-        durationMs: Date.now() - batchStartedAt
-      })
-
-      vectors.forEach((vector, j) => {
-        const chunkIndex = batchStart + j
-        embeddingData.push({
-          vector,
-          text: chunks[chunkIndex],
-          file_id: fileId,
-          chunk_index: chunkIndex
-        })
-      })
-    }
-
-    log.info('processFile all embeddings generated', { 
-      relativePath, 
-      fileId, 
-      totalEmbeddings: embeddingData.length 
-    })
-
-  } catch (error) {
-    // Preparation failed - no data was modified, just log and mark as failed
-    log.error('processFile preparation failed', { relativePath, filePath, fileId, durationMs: Date.now() - startedAt, error })
-    const message = error instanceof Error ? error.message : String(error)
-    db.prepare("UPDATE files SET indexed_status = 'failed', error_message = ? WHERE id = ?").run(
-      message,
-      fileId
-    )
-    return
-  }
-
-  // ============================================================
-  // PHASE 2: COMMIT - Write new data, then cleanup old
-  // ============================================================
-  
-  try {
-    // Step 1: Write NEW embeddings to LanceDB (keep old ones for now)
-    let table: Awaited<ReturnType<typeof lance.openTable>> | null = null
-    
-    try {
-      table = await lance.openTable(DOCUMENT_TABLE)
-    } catch {
-      // Table doesn't exist yet, will be created
-    }
-
-    const lanceStartedAt = Date.now()
-    
-    if (table) {
-      // Add new embeddings (old ones still exist for rollback safety)
-      await withRetry(
-        () => table!.add(embeddingData),
-        'LanceDB add embeddings'
-      )
-    } else {
-      // Create table with first batch
-      table = await withRetry(
-        () => lance.createTable(DOCUMENT_TABLE, embeddingData),
-        'LanceDB create table'
-      )
-    }
-    
-    log.info('processFile lancedb write done', { 
-      relativePath, 
-      fileId, 
-      rows: embeddingData.length, 
-      durationMs: Date.now() - lanceStartedAt 
-    })
-
-    // Step 2: Commit SQLite changes in a transaction
-    const insertChunk = db.prepare(`
-      INSERT INTO chunks (id, file_id, chunk_index, text, created_at)
-      VALUES (?, ?, ?, ?, ?)
-    `)
-    
-    const deleteOldChunks = db.prepare('DELETE FROM chunks WHERE file_id = ?')
-    const updateFileStatus = db.prepare(
-      "UPDATE files SET indexed_status = 'indexed', last_indexed_at = ?, error_message = NULL WHERE id = ?"
-    )
-
-    // Wrap all SQLite operations in a transaction for atomicity
-    const commitSQLite = db.transaction(() => {
-      // Delete old chunks if this is an update
-      if (isUpdate) {
-        deleteOldChunks.run(fileId)
-      }
-      
-      // Insert new chunks
-      for (const chunk of embeddingData) {
-        insertChunk.run(uuidv4(), fileId, chunk.chunk_index, chunk.text, Date.now())
-      }
-      
-      // Update file status
-      updateFileStatus.run(Date.now(), fileId)
-    })
-
-    const sqliteStartedAt = Date.now()
-    commitSQLite()
-    log.info('processFile sqlite commit done', { 
-      relativePath, 
-      fileId, 
-      rows: embeddingData.length, 
-      durationMs: Date.now() - sqliteStartedAt 
-    })
-
-    // Step 3: CLEANUP - Delete old LanceDB embeddings (only after SQLite commit succeeds)
-    // For updates, we now have both old and new embeddings in LanceDB
-    // Delete the old ones now that everything else succeeded
-    if (isUpdate && isValidUUID(fileId)) {
-      try {
-        // LanceDB doesn't support transactions, so we have duplicates temporarily
-        // We just added new embeddings, now delete old ones by chunk_index
-        // Since we're using add() not overwrite, we need to delete OLD embeddings
-        // The new embeddings have the same file_id, so we can't distinguish by file_id alone
-        // For now, we'll live with the duplication since LanceDB deduplication isn't straightforward
-        // TODO: In a future migration, add a version/timestamp column to embeddings for proper cleanup
-        log.info('processFile note: LanceDB may have duplicate embeddings until manual cleanup', { 
-          relativePath, 
-          fileId 
-        })
-      } catch (error) {
-        // Non-critical - old embeddings will remain but system still works
-        log.warn('processFile could not cleanup old LanceDB embeddings', { relativePath, fileId, error })
-      }
-    }
-
-    log.info('processFile success', { relativePath, fileId, durationMs: Date.now() - startedAt })
-    
-  } catch (error) {
-    log.error('processFile commit failed', { relativePath, filePath, fileId, durationMs: Date.now() - startedAt, error })
-    const message = error instanceof Error ? error.message : String(error)
-    db.prepare("UPDATE files SET indexed_status = 'failed', error_message = ? WHERE id = ?").run(
-      message,
-      fileId
+      'file',
+      mimeType,
+      sizeBytes,
+      createdAt,
+      modifiedAt,
+      'processing'
     )
   }
 }
 
+function updateFileStatus(
+  db: Database.Database,
+  fileId: string,
+  status: string,
+  errorMessage: string | null,
+  checksum: string | null
+): void {
+  db.prepare(
+    `
+    UPDATE files
+    SET
+      indexed_status = ?,
+      error_message = ?,
+      last_indexed_at = ?,
+      checksum = ?
+    WHERE id = ?
+  `
+  ).run(status, errorMessage, Date.now(), checksum, fileId)
+}
+
+async function openDocumentsTable(
+  lance: lancedb.Connection,
+  initialRows?: Record<string, unknown>[]
+): Promise<{ table: lancedb.Table; createdWithInitialRows: boolean }> {
+  try {
+    return { table: await lance.openTable(DOCUMENT_TABLE), createdWithInitialRows: false }
+  } catch (error) {
+    if (!initialRows || initialRows.length === 0) {
+      throw error
+    }
+    try {
+      const table = await lance.createTable(DOCUMENT_TABLE, initialRows, { mode: 'create', existOk: true })
+      return { table, createdWithInitialRows: true }
+    } catch {
+      return { table: await lance.openTable(DOCUMENT_TABLE), createdWithInitialRows: false }
+    }
+  }
+}
+
+function computeTokenCount(text: string): number {
+  const trimmed = text.trim()
+  if (!trimmed) return 0
+  return trimmed.split(/\s+/).length
+}
+
+function findChunkSpan(content: string, chunk: string, startIndex: number): [number | null, number | null, number] {
+  const found = content.indexOf(chunk, startIndex)
+  if (found === -1) return [null, null, startIndex]
+  const end = found + chunk.length
+  return [found, end, end]
+}
+
+async function readFileText(extension: string, buffer: Buffer): Promise<string> {
+  if (extension === '.pdf') {
+    return extractPdfText(buffer)
+  }
+
+  if (!TEXT_EXTENSIONS.has(extension)) {
+    throw new Error(`Unsupported file type: ${extension || 'unknown'}`)
+  }
+
+  return buffer.toString('utf-8')
+}
+
+export async function processFile(filePath: string, relativePath: string): Promise<void> {
+  const startedAt = Date.now()
+  const config = getConfig()
+  const db = getSQLite()
+
+  let fileId = uuidv4()
+  let checksum: string | null = null
+
+  try {
+    const stats = await fs.stat(filePath)
+    if (!stats.isFile()) {
+      return
+    }
+
+    const existing = getExistingFile(db, filePath)
+    if (existing) {
+      fileId = existing.id
+    }
+
+    const createdAt = existing?.createdAt ?? Math.floor(stats.birthtimeMs || Date.now())
+    const modifiedAt = Math.floor(stats.mtimeMs)
+    const sizeBytes = stats.size
+    const extension = extname(filePath).toLowerCase()
+    const mimeType = getMimeType(extension)
+
+    upsertProcessingFile(db, fileId, filePath, relativePath, createdAt, modifiedAt, sizeBytes, mimeType)
+
+    if (sizeBytes > config.ingestion.maxFileSize) {
+      updateFileStatus(
+        db,
+        fileId,
+        'skipped',
+        `File exceeds size limit (${sizeBytes} bytes)`,
+        null
+      )
+      return
+    }
+
+    const buffer = await fs.readFile(filePath)
+    checksum = createHash('sha256').update(buffer).digest('hex')
+
+    const content = await readFileText(extension, buffer)
+    if (!content.trim()) {
+      updateFileStatus(db, fileId, 'error', 'No text content found', checksum)
+      return
+    }
+
+    const chunks = splitTextIntoChunks(content, config.ingestion.chunkSize)
+    if (chunks.length === 0) {
+      updateFileStatus(db, fileId, 'error', 'No chunks generated', checksum)
+      return
+    }
+
+    // Clear existing chunk metadata and vectors before re-indexing
+    db.prepare('DELETE FROM chunks WHERE file_id = ?').run(fileId)
+    await deleteFileEmbeddings(fileId)
+
+    const chunkRows: ChunkRow[] = []
+    const vectorRows: Record<string, unknown>[] = []
+    let searchIndex = 0
+    const createdAtChunk = Date.now()
+
+    for (let i = 0; i < chunks.length; i += config.ingestion.batchSize) {
+      const batch = chunks.slice(i, i + config.ingestion.batchSize)
+      const vectors = await generateEmbeddingsInWorker(batch)
+
+      for (let j = 0; j < batch.length; j++) {
+        const chunkIndex = i + j
+        const text = batch[j]
+        const [charStart, charEnd, nextIndex] = findChunkSpan(content, text, searchIndex)
+        searchIndex = nextIndex
+
+        chunkRows.push({
+          id: uuidv4(),
+          fileId,
+          chunkIndex,
+          text,
+          charStart,
+          charEnd,
+          tokenCount: computeTokenCount(text),
+          createdAt: createdAtChunk
+        })
+
+        vectorRows.push({
+          file_id: fileId,
+          chunk_index: chunkIndex,
+          text,
+          vector: vectors[j],
+          created_at: createdAtChunk
+        })
+      }
+    }
+
+    const insertChunk = db.prepare(
+      `
+      INSERT INTO chunks (
+        id,
+        file_id,
+        chunk_index,
+        text,
+        char_start,
+        char_end,
+        token_count,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `
+    )
+
+    db.transaction(() => {
+      for (const row of chunkRows) {
+        insertChunk.run(
+          row.id,
+          row.fileId,
+          row.chunkIndex,
+          row.text,
+          row.charStart,
+          row.charEnd,
+          row.tokenCount,
+          row.createdAt
+        )
+      }
+    })()
+
+    const lance = getLanceDB()
+    const { table, createdWithInitialRows } = await openDocumentsTable(lance, vectorRows)
+    if (!createdWithInitialRows && vectorRows.length > 0) {
+      await table.add(vectorRows)
+    }
+
+    updateFileStatus(db, fileId, 'indexed', null, checksum)
+
+    log.info('processFile complete', {
+      filePath,
+      relativePath,
+      fileId,
+      chunks: chunks.length,
+      durationMs: Date.now() - startedAt
+    })
+  } catch (error) {
+    updateFileStatus(
+      db,
+      fileId,
+      'error',
+      error instanceof Error ? error.message : 'Failed to process file',
+      checksum
+    )
+    log.error('processFile failed', { filePath, relativePath, error })
+  }
+}
+
+export async function deleteFileEmbeddings(fileId: string): Promise<void> {
+  const lance = getLanceDB()
+  try {
+    const table = await lance.openTable(DOCUMENT_TABLE)
+    await table.delete(`file_id = '${fileId}'`)
+  } catch (error) {
+    log.warn('deleteFileEmbeddings failed', { fileId, error })
+  }
+}

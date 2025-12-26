@@ -135,6 +135,12 @@ export interface BrainAPI {
   getLLMModels: (provider?: ApiKeyProvider) => Promise<LLMModelsResponse>
   getLLMConfig: () => Promise<LLMConfigResponse>
   getLLMKeyStatus: () => Promise<{ success: boolean; status?: ApiKeyStatus; error?: string }>
+  getStoredLLMApiKey: (
+    provider?: ApiKeyProvider
+  ) => Promise<{ success: boolean; hasKey?: boolean; maskedKey?: string; error?: string }>
+  revealStoredLLMApiKey: (
+    provider?: ApiKeyProvider
+  ) => Promise<{ success: boolean; hasKey?: boolean; apiKey?: string; error?: string }>
   setLLMApiKey: (apiKey: string, provider?: ApiKeyProvider) => Promise<{ success: boolean; error?: string }>
   clearLLMApiKey: (provider?: ApiKeyProvider) => Promise<{ success: boolean; error?: string }>
   setLLMModel: (modelId: string) => Promise<{ success: boolean; error?: string }>
@@ -148,6 +154,12 @@ export interface BrainAPI {
 
   // Progress events
   onScanProgress: (callback: (progress: ScanProgress) => void) => () => void
+
+  // Experiment API
+  processExperimentDocs: (filePaths: string[]) => Promise<ExperimentProcessResponse>
+  runExperimentQuery: (request: ExperimentQueryRequest) => Promise<ExperimentQueryResponse>
+  clearExperiment: () => Promise<{ success: boolean }>
+  onExperimentProgress: (callback: (progress: ExperimentProgress) => void) => () => void
 }
 
 /**
@@ -308,4 +320,49 @@ export interface ScanProgress {
   newFiles: number
   updatedFiles: number
   deletedFiles: number
+}
+
+/**
+ * Experiment types for RAG vs Ontology comparison
+ */
+export interface ExperimentQueryRequest {
+  query: string
+  apiKey: string
+  model: string
+  useOntology: boolean
+}
+
+export interface ExperimentChunkResult {
+  text: string
+  score: number
+  entityPath?: string[]
+}
+
+export interface ExperimentComparisonResult {
+  source: 'rag' | 'ontology'
+  chunks: ExperimentChunkResult[]
+  answer: string
+  latencyMs: number
+}
+
+export interface ExperimentProcessResponse {
+  success: boolean
+  chunkCount?: number
+  fileCount?: number
+  durationMs?: number
+  error?: string
+}
+
+export interface ExperimentQueryResponse {
+  success: boolean
+  ragResult?: ExperimentComparisonResult
+  ontologyResult?: ExperimentComparisonResult
+  error?: string
+}
+
+export interface ExperimentProgress {
+  phase: 'reading' | 'embedding'
+  current: number
+  total: number
+  currentFile?: string
 }

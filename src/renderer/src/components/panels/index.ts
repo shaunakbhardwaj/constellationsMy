@@ -1,5 +1,1 @@
-export { HomePanel } from './HomePanel'
-export { SearchPanel } from './SearchPanel'
-export { FilesPanel } from './FilesPanel'
-export { AutonomousPanel } from './AutonomousPanel'
-export { SettingsPanel } from './SettingsPanel'
+export { ExperimentPanel } from './ExperimentPanel'

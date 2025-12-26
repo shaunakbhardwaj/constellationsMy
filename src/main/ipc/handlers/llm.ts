@@ -66,6 +66,35 @@ export function registerLLMHandlers(): void {
     }
   })
 
+  // Get stored API key (masked) for a provider
+  ipcMain.handle('llm-get-api-key', async (_, provider: ApiKeyProvider = 'openrouter') => {
+    try {
+      const key = getApiKey(provider) ?? ''
+      if (!key) {
+        return { success: true, hasKey: false, maskedKey: '' }
+      }
+      const maskedKey = key.length <= 8 ? '••••••' : `${key.slice(0, 4)}••••${key.slice(-4)}`
+      return { success: true, hasKey: true, maskedKey }
+    } catch (error) {
+      log.error('llm-get-api-key failed', { error })
+      return { success: false, error: 'Failed to get API key' }
+    }
+  })
+
+  // Reveal stored API key for a provider (explicit user action)
+  ipcMain.handle('llm-reveal-api-key', async (_, provider: ApiKeyProvider = 'openrouter') => {
+    try {
+      const key = getApiKey(provider) ?? ''
+      if (!key) {
+        return { success: true, hasKey: false, apiKey: '' }
+      }
+      return { success: true, hasKey: true, apiKey: key }
+    } catch (error) {
+      log.error('llm-reveal-api-key failed', { error })
+      return { success: false, error: 'Failed to reveal API key' }
+    }
+  })
+
   // Set API key (securely stored)
   ipcMain.handle(
     'llm-set-api-key',

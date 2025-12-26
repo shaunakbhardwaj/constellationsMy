@@ -1,0 +1,160 @@
+# Performance Review - Sarah Chen
+## Review Period: Q1-Q3 2024
+## Review Date: October 25, 2024
+
+**Employee:** Sarah Chen
+**Title:** Senior Product Manager
+**Department:** Product
+**Manager:** Marcus Thompson, VP of Product
+**Employment Date:** March 2021
+
+---
+
+## Overall Performance Rating: Exceeds Expectations
+
+Sarah has consistently demonstrated exceptional leadership and execution capability throughout 2024. Her work on the Velocity platform migration was particularly noteworthy, delivering the project 3 weeks ahead of schedule and $140,000 under budget.
+
+---
+
+## Q1 2024 Accomplishments
+
+### Velocity Platform Migration (January - March)
+Sarah led the migration of our legacy Velocity platform to the new cloud-native architecture. This was a complex undertaking involving 47 microservices and affecting 12,000 active customers.
+
+**Key achievements:**
+- Zero-downtime migration completed March 3rd (3 weeks early)
+- Achieved 99.97% uptime during transition period
+- Received commendation from Richard Evans (CTO) for technical coordination
+- Mentored two junior PMs (Jason Park and Michelle Torres) throughout the project
+
+**Budget performance:**
+- Allocated: $890,000
+- Actual: $752,000
+- Savings: $138,000 (15.5%)
+
+### Customer Advisory Board Expansion
+Working with Jennifer Martinez (Customer Research), Sarah helped recruit 8 new enterprise customers to our advisory board. These relationships have proven invaluable for product direction.
+
+---
+
+## Q2 2024 Accomplishments
+
+### Product Roadmap 2025 Development
+Sarah collaborated with David Park (Strategy) and Emily Watson (Design) to develop our comprehensive 2025 product roadmap. The roadmap was presented to the Board of Directors on June 15th and received unanimous approval.
+
+**Notable contributions:**
+- Identified 3 new market opportunities worth estimated $4.2M ARR
+- Proposed the customer onboarding initiative that became Project Alpha
+- Coordinated input from 15 cross-functional stakeholders
+
+### Engineering Partnership
+Strengthened collaboration with Michael Rodriguez (Engineering) and the backend team. Implemented bi-weekly technical deep-dives that have improved sprint velocity by 23%.
+
+---
+
+## Q3 2024 Accomplishments
+
+### Project Alpha Kickoff
+Selected as Project Lead for our highest-priority Q4 initiative. Sarah assembled a cross-functional team of 12 people and completed comprehensive planning documentation.
+
+**Leadership demonstration:**
+- Negotiated resource allocation with three department heads
+- Resolved initial scope conflict with Customer Success team (specifically with Robert Kim)
+- Established project governance framework now being adopted company-wide
+
+### Process Improvements
+Introduced the "Product Requirements Document 2.0" template that has been adopted by the entire Product team. Template reduces requirements gathering time by approximately 40%.
+
+---
+
+## Core Competency Ratings
+
+| Competency | Rating (1-5) | Comments |
+|------------|--------------|----------|
+| Strategic Thinking | 5 | Consistently connects tactical work to business strategy |
+| Execution | 5 | Velocity migration demonstrated exceptional execution |
+| Communication | 4 | Strong written and verbal; room to grow in executive presentations |
+| Leadership | 5 | Team consistently requests to work with Sarah |
+| Technical Depth | 4 | Good understanding of architecture; suggested deeper API knowledge |
+| Collaboration | 5 | Works effectively across all departments |
+
+---
+
+## Development Areas
+
+### Executive Communication
+While Sarah excels at team and stakeholder communication, she acknowledged desire to improve executive presence. We've enrolled her in the "Leadership Communication" program starting November 2024.
+
+### Technical Deep-Dive: APIs and Integration
+Given Project Alpha's heavy integration component, Sarah is working with James Liu and Michael Rodriguez to deepen her understanding of API design patterns. She's allocated 2 hours weekly for technical learning.
+
+---
+
+## Goals for Q4 2024 - Q1 2025
+
+1. **Project Alpha Phase 1 Delivery**
+   - Target: December 31, 2024
+   - Success criteria: Meet all Phase 1 scope items
+   - Dependencies: Customer Data Platform, Design System v3
+
+2. **Leadership Development**
+   - Complete executive communication program
+   - Present at Q1 2025 company all-hands
+
+3. **Team Development**
+   - Continue mentoring Priya Sharma (Analytics)
+   - Support Thomas Wright's transition to QA lead role
+
+4. **Customer Engagement**
+   - Conduct 10 customer discovery interviews for Phase 2 planning
+   - Collaborate with Jennifer Martinez on satisfaction survey design
+
+---
+
+## Compensation Review
+
+Based on exceptional performance, the following compensation changes are recommended:
+
+| Component | Current | Proposed | Effective Date |
+|-----------|---------|----------|----------------|
+| Base Salary | $165,000 | $185,000 | January 1, 2025 |
+| Bonus Target | 15% | 20% | January 1, 2025 |
+| Equity Refresh | - | 2,500 RSUs | Vesting over 4 years |
+
+Total compensation increase: 18.2%
+
+---
+
+## Manager Comments (Marcus Thompson)
+
+Sarah has been one of the most valuable members of my team since I joined the company 18 months ago. Her combination of strategic thinking, execution discipline, and collaborative leadership is rare.
+
+The Velocity migration success set a new standard for project delivery at our company. I'm confident that Project Alpha will be equally successful under her leadership.
+
+I strongly recommend Sarah for the proposed compensation adjustments and will be advocating for her promotion to Director of Product in our 2025 planning cycle.
+
+---
+
+## Employee Comments (Sarah Chen)
+
+Thank you for this thoughtful review. I'm proud of what we accomplished with Velocity and excited about Project Alpha's potential to transform our customer experience.
+
+I appreciate the investment in my development, particularly the executive communication program. I've already scheduled the first session with the coach.
+
+Special thanks to my teammates, especially Michael Rodriguez for the technical partnership and Jennifer Martinez for always providing customer insights that sharpen our product decisions.
+
+Looking forward to delivering Project Alpha and earning that promotion in 2025!
+
+---
+
+## Signatures
+
+| Role | Name | Date |
+|------|------|------|
+| Manager | Marcus Thompson | October 25, 2024 |
+| Employee | Sarah Chen | October 26, 2024 |
+| HR Business Partner | Angela Morrison | October 28, 2024 |
+
+---
+
+*This document is confidential and should be stored in the employee's personnel file. Copy provided to employee on October 28, 2024.*
