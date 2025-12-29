@@ -1,9 +1,9 @@
-import { ExperimentPanel } from './components/panels/ExperimentPanel'
+import { OntologyPanel } from './components/panels/OntologyPanel'
 
 function App(): React.JSX.Element {
     return (
         <div className="app-container">
-            <ExperimentPanel />
+            <OntologyPanel />
         </div>
     )
 }

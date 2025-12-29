@@ -1,351 +1,40 @@
 /**
  * Shared type definitions used across main, preload, and renderer processes.
- * This eliminates duplicate type definitions and ensures consistency.
  */
 
-/**
- * Represents a file tracked in the brain database.
- */
-export interface BrainFileRow {
-  id: string
-  path: string
-  relativePath: string
-  type: string
-  mimeType: string | null
-  sizeBytes: number | null
-  createdAt: number
-  modifiedAt: number
-  lastIndexedAt: number | null
-  indexedStatus: string | null
-  chunkCount: number
-}
-
-/**
- * A single search result from the semantic search.
- */
-export interface SearchResult {
-  fileId: string
-  fileName: string
-  text: string
-  score: number
-  chunkIndex: number
-  isIndexed: boolean
-}
-
-/**
- * Response for file import operations.
- */
-export interface FileTransferResponse {
-  success: boolean
-  requestId?: string
-  files?: { source: string; destination: string }[]
-  error?: string
-}
-
-/**
- * Response for brain data fetch operations.
- */
-export interface BrainDataResponse {
-  success: boolean
-  files?: BrainFileRow[]
-  error?: string
-}
-
-/**
- * Response for search operations.
- */
-export interface SearchResponse {
-  success: boolean
-  results?: SearchResult[]
-  error?: string
-}
-
-/**
- * Goal types for tracking user objectives
- */
-export type GoalStatus = 'pending' | 'in_progress' | 'completed'
-
-export interface Goal {
-  id: string
-  text: string
-  status: GoalStatus
-  priority: number
-  createdAt: number
-  updatedAt: number
-  completedAt: number | null
-  autonomousEnabled: boolean
-  autonomousStartedAt: number | null
-  autonomousCompletedAt: number | null
-}
-
-export interface CreateGoalRequest {
-  text: string
-  priority?: number
-}
-
-export interface UpdateGoalRequest {
-  text?: string
-  status?: GoalStatus
-  priority?: number
-  autonomousEnabled?: boolean
-}
-
-export interface GoalsResponse {
-  success: boolean
-  goals?: Goal[]
-  error?: string
-}
-
-export interface GoalResponse {
-  success: boolean
-  goal?: Goal
-  error?: string
-}
-
-/**
- * API exposed to the renderer process via contextBridge.
- */
-export interface BrainAPI {
-  importFiles: (request: string[] | ImportFilesRequest) => Promise<FileTransferResponse>
-  fetchBrainData: () => Promise<BrainDataResponse>
-  searchBrain: (query: string) => Promise<SearchResponse>
-  deleteFile: (fileId: string) => Promise<{ success: boolean; error?: string }>
+export interface AppAPI {
   getFilePath: (file: File) => string
-  getConfig: () => Promise<ConfigResponse>
-  setConfig: (config: Partial<AppConfig>) => Promise<ConfigResponse>
-  resetConfig: () => Promise<ConfigResponse>
 
-  // Goals API
-  getGoals: () => Promise<GoalsResponse>
-  createGoal: (request: CreateGoalRequest) => Promise<GoalResponse>
-  updateGoal: (id: string, updates: UpdateGoalRequest) => Promise<GoalResponse>
-  deleteGoal: (id: string) => Promise<{ success: boolean; error?: string }>
-  toggleGoalComplete: (id: string) => Promise<GoalResponse>
+  getStoredApiKey: () => Promise<{ success: boolean; hasKey?: boolean; maskedKey?: string; error?: string }>
+  revealStoredApiKey: () => Promise<{ success: boolean; hasKey?: boolean; apiKey?: string; error?: string }>
+  setApiKey: (apiKey: string) => Promise<{ success: boolean; error?: string }>
+  clearApiKey: () => Promise<{ success: boolean; error?: string }>
 
-  // Agent API
-  getAgentState: () => Promise<AgentStateResponse>
-  startAgent: (goalId: string) => Promise<{ success: boolean; error?: string }>
-  pauseAgent: () => Promise<{ success: boolean; error?: string }>
-  resumeAgent: () => Promise<{ success: boolean; error?: string }>
-  stopAgent: () => Promise<{ success: boolean; error?: string }>
-  sendAgentGuidance: (guidance: string) => Promise<{ success: boolean; error?: string }>
-  onAgentStateChange: (callback: (state: AgentState) => void) => () => void
-
-  // LLM API
-  getLLMModels: (provider?: ApiKeyProvider) => Promise<LLMModelsResponse>
-  getLLMConfig: () => Promise<LLMConfigResponse>
-  getLLMKeyStatus: () => Promise<{ success: boolean; status?: ApiKeyStatus; error?: string }>
-  getStoredLLMApiKey: (
-    provider?: ApiKeyProvider
-  ) => Promise<{ success: boolean; hasKey?: boolean; maskedKey?: string; error?: string }>
-  revealStoredLLMApiKey: (
-    provider?: ApiKeyProvider
-  ) => Promise<{ success: boolean; hasKey?: boolean; apiKey?: string; error?: string }>
-  setLLMApiKey: (apiKey: string, provider?: ApiKeyProvider) => Promise<{ success: boolean; error?: string }>
-  clearLLMApiKey: (provider?: ApiKeyProvider) => Promise<{ success: boolean; error?: string }>
-  setLLMModel: (modelId: string) => Promise<{ success: boolean; error?: string }>
-  testLLM: () => Promise<{ success: boolean; response?: string; error?: string }>
-
-  // Embedding Models API
-  getEmbeddingModels: () => Promise<EmbeddingModelsResponse>
-  downloadEmbeddingModel: (modelId: string) => Promise<{ success: boolean; error?: string }>
-  setActiveEmbeddingModel: (modelId: string) => Promise<{ success: boolean; error?: string }>
-  onEmbeddingModelDownloadProgress: (callback: (progress: EmbeddingModelDownloadProgress) => void) => () => void
-
-  // Progress events
-  onScanProgress: (callback: (progress: ScanProgress) => void) => () => void
-
-  // Experiment API
-  processExperimentDocs: (filePaths: string[]) => Promise<ExperimentProcessResponse>
-  runExperimentQuery: (request: ExperimentQueryRequest) => Promise<ExperimentQueryResponse>
-  clearExperiment: () => Promise<{ success: boolean }>
-  onExperimentProgress: (callback: (progress: ExperimentProgress) => void) => () => void
+  processOntologyDocs: (filePaths: string[]) => Promise<OntologyProcessResponse>
+  runOntologyQuery: (request: OntologyQueryRequest) => Promise<OntologyQueryResponse>
+  clearOntology: () => Promise<{ success: boolean }>
+  onOntologyProgress: (callback: (progress: OntologyProgress) => void) => () => void
 }
 
-/**
- * Agent types for autonomous processing
- */
-export type AgentStatus = 'idle' | 'planning' | 'executing' | 'paused' | 'error' | 'completed'
-
-export interface ProgressItem {
-  id: string
-  description: string
-  completedAt: number
-  type: 'plan' | 'execute' | 'verify'
-}
-
-export interface PlanItem {
-  id: string
-  description: string
-  type: 'search' | 'index' | 'analyze' | 'summarize' | 'create'
-  order: number
-}
-
-export interface AgentState {
-  status: AgentStatus
-  currentGoalId: string | null
-  currentGoalText: string | null
-  currentTask: string | null
-  startedAt: number | null
-  progress: ProgressItem[]
-  upNext: PlanItem[]
-  error: string | null
-}
-
-export interface AgentStateResponse {
-  success: boolean
-  state?: AgentState
-  error?: string
-}
-
-export type ImportFilesRequest = {
-  requestId: string
-  paths: string[]
-  source?: 'drag-drop' | 'file-picker' | 'unknown'
-}
-
-/**
- * Configuration types for the app.
- * Duplicated here (vs importing from main/config) to avoid bundling issues.
- */
-
-export interface LoggingConfig {
-  level: 'debug' | 'info' | 'warn' | 'error'
-  maxFiles: number
-  maxFileSize: number
-}
-
-export interface IngestionConfig {
-  maxFileSize: number
-  chunkSize: number
-  batchSize: number
-  concurrency: number
-}
-
-export interface EmbeddingConfig {
-  model: string
-}
-
-export interface AppConfig {
-  brainDirectory: string
-  ingestion: IngestionConfig
-  embedding: EmbeddingConfig
-  logging: LoggingConfig
-}
-
-export interface ConfigResponse {
-  success: boolean
-  config?: AppConfig
-  error?: string
-}
-
-/**
- * LLM types for OpenRouter integration
- */
-export interface LLMModel {
-  id: string
-  name: string
-  provider: string
-  contextLength: number
-  pricing: {
-    prompt: number
-    completion: number
-  }
-}
-
-export interface LLMConfig {
-  hasOpenRouterKey: boolean
-  hasGeminiKey: boolean
-  model: string
-  isReady: boolean
-}
-
-export interface LLMModelsResponse {
-  success: boolean
-  models?: LLMModel[]
-  error?: string
-}
-
-export interface LLMConfigResponse {
-  success: boolean
-  config?: LLMConfig
-  error?: string
-}
-
-/**
- * API Key Provider types
- */
-export type ApiKeyProvider = 'openrouter' | 'gemini'
-
-export interface ApiKeyStatus {
-  openrouter: boolean
-  gemini: boolean
-}
-
-/**
- * Embedding model types
- */
-export interface EmbeddingModelInfo {
-  id: string
-  name: string
-  provider: 'local'
-  sizeBytes: number
-  dimensions: number
-  description: string
-  downloaded: boolean
-  downloading: boolean
-}
-
-export interface EmbeddingModelsResponse {
-  success: boolean
-  models?: EmbeddingModelInfo[]
-  activeModelId?: string
-  error?: string
-}
-
-export interface EmbeddingModelDownloadProgress {
-  modelId: string
-  percent: number
-  status: string
-}
-
-/**
- * Scanner progress for indexing feedback
- */
-export interface ScanProgress {
-  phase: 'scanning' | 'indexing' | 'complete'
-  filesScanned: number
-  filesTotal: number
-  currentFile?: string
-  newFiles: number
-  updatedFiles: number
-  deletedFiles: number
-}
-
-/**
- * Experiment types for RAG vs Ontology comparison
- */
-export interface ExperimentQueryRequest {
+export interface OntologyQueryRequest {
   query: string
   apiKey: string
   model: string
-  useOntology: boolean
 }
 
-export interface ExperimentChunkResult {
+export interface OntologyChunkResult {
   text: string
   score: number
   entityPath?: string[]
 }
 
-export interface ExperimentComparisonResult {
-  source: 'rag' | 'ontology'
-  chunks: ExperimentChunkResult[]
+export interface OntologyResult {
+  chunks: OntologyChunkResult[]
   answer: string
   latencyMs: number
 }
 
-export interface ExperimentProcessResponse {
+export interface OntologyProcessResponse {
   success: boolean
   chunkCount?: number
   fileCount?: number
@@ -353,14 +42,13 @@ export interface ExperimentProcessResponse {
   error?: string
 }
 
-export interface ExperimentQueryResponse {
+export interface OntologyQueryResponse {
   success: boolean
-  ragResult?: ExperimentComparisonResult
-  ontologyResult?: ExperimentComparisonResult
+  result?: OntologyResult
   error?: string
 }
 
-export interface ExperimentProgress {
+export interface OntologyProgress {
   phase: 'reading' | 'embedding'
   current: number
   total: number
