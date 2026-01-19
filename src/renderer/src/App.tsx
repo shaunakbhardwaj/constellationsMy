@@ -55,7 +55,6 @@ export default function App() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [generatedMarkdown, setGeneratedMarkdown] = useState<string>('');
 
   // Settings panel state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -142,7 +141,6 @@ export default function App() {
 
       setData(parsed);
       setViewKey((prev) => prev + 1);
-      setGeneratedMarkdown(result.markdown);
       // Auto-open fullscreen canvas after successful generation
       setIsCanvasOpen(true);
     } catch (err) {
@@ -157,15 +155,6 @@ export default function App() {
       e.preventDefault();
       handleGenerate();
     }
-  };
-
-  const copyMarkdown = () => {
-    navigator.clipboard.writeText(generatedMarkdown);
-  };
-
-  // Open canvas overlay
-  const handleOpenCanvas = () => {
-    setIsCanvasOpen(true);
   };
 
   // Close canvas overlay

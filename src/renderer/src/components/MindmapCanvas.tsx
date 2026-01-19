@@ -158,7 +158,7 @@ export default function MindmapCanvas({
     selectedNodeId,
     editingNodeId,
     expandingNodeId,
-    focusedNodeId,
+    focusedNodeId: _focusedNodeId,
     onNodeClick,
     onNodeTitleChange,
     onEditComplete,

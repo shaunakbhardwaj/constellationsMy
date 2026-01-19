@@ -206,12 +206,12 @@ export function useMindmapState(initialData: MindmapNode | null) {
             if (!parent) return prevRoot;
 
             // Ensure children have correct levels and inherit parent color
-            const processedChildren = newChildren.map((child, index) => ({
+            const processedChildren = newChildren.map((child) => ({
                 ...child,
                 id: generateNodeId(),
                 level: parent.level + 1,
                 branchColor: parent.branchColor,
-                children: child.children.map((grandchild, gIndex) => ({
+                children: child.children.map((grandchild) => ({
                     ...grandchild,
                     id: generateNodeId(),
                     level: parent.level + 2,
