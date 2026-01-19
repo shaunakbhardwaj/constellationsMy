@@ -1,0 +1,120 @@
+.backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 4000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(13, 13, 15, 0.7);
+    backdrop-filter: blur(4px);
+    animation: backdropFade 0.15s ease;
+}
+
+@keyframes backdropFade {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.dialog {
+    width: 100%;
+    max-width: 380px;
+    margin: 20px;
+    padding: 28px;
+    background: var(--background-secondary);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(13, 13, 15, 0.5);
+    text-align: center;
+    animation: dialogPop 0.2s ease;
+}
+
+@keyframes dialogPop {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 16px;
+    background: rgba(239, 68, 68, 0.15);
+    border-radius: 50%;
+    color: #ef4444;
+}
+
+.title {
+    margin-bottom: 12px;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--foreground);
+}
+
+.message {
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: var(--foreground-muted);
+    line-height: 1.5;
+}
+
+.message strong {
+    color: var(--foreground);
+    font-weight: 500;
+}
+
+.warning {
+    margin-bottom: 24px;
+    font-size: 13px;
+    color: #f87171;
+}
+
+.actions {
+    display: flex;
+    gap: 12px;
+}
+
+.cancelButton,
+.deleteButton {
+    flex: 1;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.cancelButton {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    color: var(--foreground);
+}
+
+.cancelButton:hover {
+    background: var(--glass-bg-hover);
+}
+
+.deleteButton {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    border: none;
+    color: white;
+}
+
+.deleteButton:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
+}

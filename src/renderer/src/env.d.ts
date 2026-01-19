@@ -1,13 +1,18 @@
 /// <reference types="vite/client" />
 
-import type { ElectronAPI } from '@electron-toolkit/preload'
-import type { BrainAPI } from '../../shared/types'
-
-declare global {
-  interface Window {
-    electron: ElectronAPI
-    api: BrainAPI
-  }
+interface Window {
+    electron: any
+    api: {
+        generateMindmap: (params: any) => Promise<any>
+        expandNode: (params: any) => Promise<any>
+    }
 }
 
-export {}
+interface ImportMetaEnv {
+    readonly VITE_DEFAULT_MODEL: string
+    readonly VITE_OPENROUTER_API_KEY: string
+}
+
+interface ImportMeta {
+    readonly env: ImportMetaEnv
+}

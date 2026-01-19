@@ -1,4 +1,2 @@
-declare module '*.sql?raw' {
-  const content: string
-  export default content
-}
+declare module '*.png'
+declare module '*.ico'
