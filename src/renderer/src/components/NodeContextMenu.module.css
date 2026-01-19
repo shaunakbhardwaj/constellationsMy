@@ -1,0 +1,158 @@
+.menu {
+    position: fixed;
+    z-index: 2000;
+    min-width: 200px;
+    padding: 12px 8px;
+    background: var(--background-card);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    box-shadow:
+        0 10px 40px rgba(13, 13, 15, 0.5),
+        0 0 1px var(--glass-border);
+    animation: menuAppear 0.15s ease-out;
+}
+
+@keyframes menuAppear {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Color picker row */
+.colorRow {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 12px;
+}
+
+.colorButton {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.colorButton:hover {
+    transform: scale(1.15);
+    border-color: white;
+}
+
+.colorButton:active {
+    transform: scale(1.05);
+}
+
+/* Divider */
+.divider {
+    height: 1px;
+    margin: 8px 12px;
+    background: var(--glass-border);
+}
+
+/* Menu items */
+.menuItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 16px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    color: var(--foreground);
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.menuItem:hover {
+    background: var(--glass-bg-hover);
+}
+
+.menuItem:active {
+    background: var(--glass-bg-hover);
+}
+
+.menuIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    color: var(--foreground-muted);
+    flex-shrink: 0;
+}
+
+.menuItem:hover .menuIcon {
+    color: var(--foreground);
+}
+
+.menuLabel {
+    flex: 1;
+}
+
+.badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    background: var(--accent-primary);
+    border-radius: 50%;
+    font-size: 10px;
+    color: white;
+}
+
+/* Delete item special styling */
+.deleteItem {
+    color: #f87171;
+}
+
+.deleteItem .menuIcon {
+    color: #f87171;
+}
+
+.deleteItem:hover {
+    background: rgba(248, 113, 113, 0.15);
+}
+
+.deleteItem:hover .menuIcon {
+    color: #ef4444;
+}
+
+/* Disabled state */
+.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.disabled:hover {
+    background: transparent;
+}
+
+.disabled:hover .menuIcon {
+    color: #f87171;
+}
+
+/* Keyboard shortcut hints */
+.shortcut {
+    font-size: 11px;
+    color: var(--foreground-muted);
+    background: rgba(255, 255, 255, 0.08);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    letter-spacing: 0.5px;
+}

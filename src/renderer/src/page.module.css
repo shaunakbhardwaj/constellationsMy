@@ -1,0 +1,579 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  background: var(--background);
+}
+
+/* Subtle Background Gradient */
+.ambientGlow {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--gradient-subtle);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Floating Nodes Background */
+.floatingNodes {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.floatingNode {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--foreground-muted);
+  pointer-events: auto;
+  cursor: default;
+  transition: all 0.3s ease;
+  /* FLOATING ANIMATION */
+  animation: floatAnimation 6s ease-in-out infinite;
+}
+
+.floatingNode::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: var(--foreground-muted);
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+/* HOVER GLOW EFFECT */
+.floatingNode:hover {
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
+  color: var(--foreground);
+  box-shadow: var(--shadow-glow);
+  transform: scale(1.05) translateY(-5px);
+}
+
+.floatingNode:hover::before {
+  background: var(--foreground);
+  box-shadow: var(--shadow-glow);
+}
+
+/* Staggered floating animations */
+.floatingNode:nth-child(1) {
+  animation-delay: 0s;
+  animation-duration: 5s;
+}
+
+.floatingNode:nth-child(2) {
+  animation-delay: 1s;
+  animation-duration: 7s;
+}
+
+.floatingNode:nth-child(3) {
+  animation-delay: 0.5s;
+  animation-duration: 6s;
+}
+
+.floatingNode:nth-child(4) {
+  animation-delay: 1.5s;
+  animation-duration: 8s;
+}
+
+.floatingNode:nth-child(5) {
+  animation-delay: 0.8s;
+  animation-duration: 5.5s;
+}
+
+@keyframes floatAnimation {
+
+  0%,
+  100% {
+    transform: translateY(0px) translateX(0px);
+  }
+
+  25% {
+    transform: translateY(-15px) translateX(8px);
+  }
+
+  50% {
+    transform: translateY(-8px) translateX(-6px);
+  }
+
+  75% {
+    transform: translateY(-20px) translateX(4px);
+  }
+}
+
+.nodeOrbit {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border: 1px dashed var(--glass-border);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: breathe 8s ease-in-out infinite;
+}
+
+@keyframes breathe {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+
+  50% {
+    transform: scale(1.03);
+    opacity: 1;
+  }
+}
+
+/* Header */
+.header {
+  position: relative;
+  z-index: 100;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 40px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logoIcon {
+  width: 36px;
+  height: 36px;
+  background: var(--foreground);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease;
+}
+
+.logoIcon:hover {
+  transform: rotate(90deg);
+}
+
+.logo span {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+}
+
+.headerNav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--glass-bg);
+  padding: 4px;
+  border-radius: 9999px;
+  border: 1px solid var(--glass-border);
+}
+
+.navLink {
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--foreground-muted);
+  border-radius: 9999px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.navLink:hover {
+  color: var(--foreground);
+  background: var(--glass-bg-hover);
+}
+
+.navLinkActive {
+  color: var(--background) !important;
+  background: var(--foreground) !important;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.settingsButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  color: var(--foreground-muted);
+  transition: all 0.2s ease;
+}
+
+.settingsButton:hover {
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
+  color: var(--foreground);
+  transform: rotate(45deg);
+}
+
+.apiLink {
+  font-size: 13px;
+  color: var(--foreground-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.2s ease;
+}
+
+.apiLink:hover {
+  color: var(--foreground);
+}
+
+/* Hero Section */
+.heroSection {
+  position: relative;
+  z-index: 10;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+  min-height: 70vh;
+}
+
+.welcomeText {
+  font-size: clamp(42px, 8vw, 72px);
+  font-weight: 300;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin-bottom: 20px;
+  color: var(--foreground);
+}
+
+.welcomeName {
+  font-weight: 600;
+}
+
+.heroSubtitle {
+  font-size: 16px;
+  color: var(--foreground-muted);
+  max-width: 520px;
+  margin-bottom: 40px;
+  line-height: 1.7;
+}
+
+/* Input Area - CRITICAL */
+.inputArea {
+  width: 100%;
+  max-width: 580px;
+  margin-bottom: 24px;
+}
+
+.inputWrapper {
+  display: flex;
+  align-items: center;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.inputWrapper:focus-within {
+  border-color: var(--glass-border-hover);
+  background: var(--glass-bg-hover);
+  box-shadow: 0 0 0 4px var(--accent-glow);
+}
+
+.promptInput {
+  flex: 1;
+  padding: 18px 22px;
+  font-size: 15px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--foreground);
+}
+
+.promptInput::placeholder {
+  color: var(--foreground-dim);
+}
+
+.generateButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 6px;
+  padding: 14px 28px;
+  background: var(--foreground);
+  color: var(--background);
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.generateButton:hover:not(:disabled) {
+  transform: scale(1.02);
+  box-shadow: var(--shadow-glow);
+}
+
+.generateButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--glass-border);
+  border-top-color: var(--background);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Button Group */
+.buttonGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.secondaryButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--foreground-muted);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.secondaryButton:hover {
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
+  color: var(--foreground);
+}
+
+/* Error */
+.error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  background: rgba(255, 100, 100, 0.1);
+  border: 1px solid rgba(255, 100, 100, 0.2);
+  border-radius: 10px;
+  color: #ff8888;
+  font-size: 14px;
+  margin-top: 16px;
+}
+
+/* History Page */
+.historySection {
+  position: relative;
+  z-index: 10;
+  flex: 1;
+  padding: 40px;
+}
+
+.historyEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 80px 40px;
+  color: var(--foreground-muted);
+}
+
+.historyEmpty h3 {
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--foreground);
+  margin-bottom: 12px;
+}
+
+.historyEmpty p {
+  font-size: 15px;
+  max-width: 400px;
+  line-height: 1.6;
+}
+
+/* Mindmap Section */
+.mindmapSection {
+  position: relative;
+  z-index: 10;
+  min-height: 500px;
+  margin: 0 40px 40px;
+  background: var(--background-elevated);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+.previewContainer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 500px;
+}
+
+.previewOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--glass-bg);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.previewContainer:hover .previewOverlay {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.openCanvasButton {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 28px;
+  background: var(--foreground);
+  color: var(--background);
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: all 0.2s ease;
+}
+
+.openCanvasButton:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: var(--shadow-glow);
+}
+
+.loadingCanvas {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 500px;
+  color: var(--foreground-muted);
+  font-size: 14px;
+}
+
+/* Markdown Actions */
+.markdownActions {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+}
+
+.copyButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: var(--glass-bg-hover);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.copyButton:hover {
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header {
+    padding: 16px 20px;
+  }
+
+  .headerNav {
+    display: none;
+  }
+
+  .heroSection {
+    padding: 24px;
+    min-height: 60vh;
+  }
+
+  .welcomeText {
+    font-size: 32px;
+  }
+
+  .heroSubtitle {
+    font-size: 14px;
+    margin-bottom: 32px;
+  }
+
+  .inputWrapper {
+    flex-direction: column;
+  }
+
+  .generateButton {
+    width: 100%;
+    justify-content: center;
+    margin: 0;
+    border-radius: 0 0 12px 12px;
+  }
+
+  .mindmapSection {
+    margin: 0 16px 16px;
+    border-radius: 16px;
+  }
+
+  .floatingNodes {
+    display: none;
+  }
+}
