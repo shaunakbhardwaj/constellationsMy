@@ -7,7 +7,8 @@ import NodeContextMenu from '@/components/NodeContextMenu';
 import NotesModal from '@/components/NotesModal';
 import DeleteConfirmDialog from '@/components/DeleteConfirmDialog';
 import SettingsPanel from '@/components/SettingsPanel';
-import AIExpandBar, { ExpansionMode } from '@/components/AIExpandBar';
+import AIExpandBar from '@/components/AIExpandBar';
+import DocumentModeSelector, { DocumentMode } from '@/components/DocumentModeSelector';
 // import styles from './page.module.css'; // We should verify if we want to keep CSS modules or move to Tailwind/global. For now keeping it if file exists.
 // Actually standard Vite doesn't support .module.css behavior interchangeably without setup, but usually works.
 // However, the import style 'styles.container' implies modules.
@@ -26,6 +27,7 @@ export default function App() {
   const [prompt, setPrompt] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [model, setModel] = useState(DEFAULT_MODEL);
+  const [documentMode, setDocumentMode] = useState<DocumentMode>('brainstorm');
   const [isHydrated, setIsHydrated] = useState(false);
 
   // Hydrate from localStorage on mount
@@ -128,6 +130,7 @@ export default function App() {
         prompt: prompt.trim(),
         apiKey: apiKey.trim(),
         model,
+        documentMode,
       });
 
       if (!result.success) {
@@ -240,8 +243,8 @@ export default function App() {
       .map(child => child.title);
   }, [root]);
 
-  // Handle AI Expand with mode and custom instruction
-  const handleAIExpand = async (mode: ExpansionMode, customInstruction: string) => {
+  // Handle AI Expand with custom instruction
+  const handleAIExpand = async (customInstruction: string) => {
     if (!aiExpandModalState || !apiKey.trim()) return;
 
     const nodeId = aiExpandModalState.node.id;
@@ -250,13 +253,11 @@ export default function App() {
     setExpandingNodeId(nodeId);
 
     try {
-      // IPC Call
       const result = await window.api.expandNode({
         topic: nodeTopic,
         context: getNodePath(nodeId),
         apiKey: apiKey.trim(),
         model,
-        mode,
         rootTopic: root?.title || '',
         siblings: getSiblingTitles(nodeId),
         customInstruction,
@@ -474,6 +475,7 @@ export default function App() {
           </p>
 
           <div className={styles.inputArea}>
+            <DocumentModeSelector mode={documentMode} onChange={setDocumentMode} />
             <div className={styles.inputWrapper}>
               <input
                 type="text"
@@ -567,6 +569,7 @@ export default function App() {
             <MindmapCanvas
               data={root}
               viewKey={viewKey}
+              documentMode={documentMode}
               selectedNodeId={selectedNodeId}
               editingNodeId={editingNodeId}
               expandingNodeId={expandingNodeId}

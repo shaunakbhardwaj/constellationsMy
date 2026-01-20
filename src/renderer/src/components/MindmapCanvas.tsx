@@ -3,19 +3,8 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import * as d3 from 'd3';
 import { MindmapNode } from '@/lib/parseMarkdown';
+import { DocumentMode, MODE_PALETTES, MODE_ROOT_COLORS } from './DocumentModeSelector';
 import styles from './MindmapCanvas.module.css';
-
-// Default branch colors for different main branches - Grayscale
-const DEFAULT_BRANCH_COLORS = [
-    '#ffffff', // White
-    '#e0e0e0', // Light Gray
-    '#c0c0c0', // Silver
-    '#a0a0a0', // Medium Gray
-    '#808080', // Gray
-    '#d0d0d0', // Off White
-    '#b0b0b0', // Ash Gray
-    '#909090', // Dim Gray
-];
 
 // Max children per side before alternating
 const MAX_PER_SIDE = 3;
@@ -119,6 +108,7 @@ const buildNodeMetrics = (text: string, depth: number): NodeMetrics => {
 interface MindmapCanvasProps {
     data: MindmapNode;
     viewKey?: number;
+    documentMode?: DocumentMode;
     selectedNodeId?: string | null;
     editingNodeId?: string | null;
     expandingNodeId?: string | null;
@@ -155,6 +145,7 @@ interface LayoutNode {
 export default function MindmapCanvas({
     data,
     viewKey,
+    documentMode = 'brainstorm',
     selectedNodeId,
     editingNodeId,
     expandingNodeId,
@@ -293,7 +284,7 @@ export default function MindmapCanvas({
             x: centerX,
             y: centerY,
             depth: 0,
-            branchColor: '#8b5cf6',
+            branchColor: MODE_ROOT_COLORS[documentMode],
             isLeft: false,
             mainBranchIndex: -1,
             children: [],
@@ -337,7 +328,8 @@ export default function MindmapCanvas({
                 const childY = rightY + rightHeights[i] / 2;
                 const childMetrics = getMetrics(item.node, 1);
                 const childX = centerX + (rootMetrics.width / 2 + childMetrics.width / 2 + HORIZONTAL_GAP);
-                const color = item.node.branchColor || DEFAULT_BRANCH_COLORS[item.idx % DEFAULT_BRANCH_COLORS.length];
+                const palette = MODE_PALETTES[documentMode];
+                const color = item.node.branchColor || palette[item.idx % palette.length];
 
                 const childLayout = layoutNode(
                     item.node,
@@ -363,7 +355,8 @@ export default function MindmapCanvas({
                 const childY = leftY + leftHeights[i] / 2;
                 const childMetrics = getMetrics(item.node, 1);
                 const childX = centerX - (rootMetrics.width / 2 + childMetrics.width / 2 + HORIZONTAL_GAP);
-                const color = item.node.branchColor || DEFAULT_BRANCH_COLORS[item.idx % DEFAULT_BRANCH_COLORS.length];
+                const palette = MODE_PALETTES[documentMode];
+                const color = item.node.branchColor || palette[item.idx % palette.length];
 
                 const childLayout = layoutNode(
                     item.node,
@@ -381,7 +374,7 @@ export default function MindmapCanvas({
         }
 
         return nodes;
-    }, []);
+    }, [documentMode]);
 
     const renderMindmap = useCallback(() => {
         if (!svgRef.current || !containerRef.current || !data) return;
