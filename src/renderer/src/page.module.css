@@ -414,6 +414,138 @@
   padding: 40px;
 }
 
+.historyHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.historyHeaderLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.historyTitle {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+}
+
+.historySubtitle {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--foreground-muted);
+}
+
+.historyLoading {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--foreground-muted);
+  font-size: 14px;
+}
+
+.historyList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.historyCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px 18px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.historyCard:hover {
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-glow);
+}
+
+.historyCard:focus-visible {
+  box-shadow: var(--shadow-glow);
+  border-color: var(--glass-border-hover);
+}
+
+.historyCardActive {
+  border-color: var(--foreground);
+}
+
+.historyCardMain {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.historyCardTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.historyCardMeta {
+  font-size: 12px;
+  color: var(--foreground-muted);
+}
+
+.historyCardActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.historyActionButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--foreground-muted);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.historyActionButton:hover {
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
+  color: var(--foreground);
+}
+
+.historyActionDanger {
+  border-color: rgba(255, 100, 100, 0.25);
+  color: #ff8888;
+}
+
+.historyActionDanger:hover {
+  border-color: rgba(255, 100, 100, 0.45);
+  background: rgba(255, 100, 100, 0.1);
+  color: #ff8888;
+}
+
 .historyEmpty {
   display: flex;
   flex-direction: column;

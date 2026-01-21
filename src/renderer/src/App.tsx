@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, lazy, Suspense } from 'react';
+import { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
 import { parseMarkdownToTree, MindmapNode } from '@/lib/parseMarkdown';
 import { useMindmapState } from '@/lib/useMindmapState';
 import { DEFAULT_MODEL } from '@/lib/openrouter';
@@ -22,6 +22,15 @@ const MindmapCanvas = lazy(() => import('@/components/mindmap/MindmapCanvas'));
 const STORAGE_KEYS = {
   API_KEY: 'mindmap_openrouter_api_key',
   MODEL: 'mindmap_selected_model',
+};
+
+type MemoryDocumentMeta = {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  model?: string;
+  documentMode?: DocumentMode;
 };
 
 export default function App() {
@@ -58,6 +67,16 @@ export default function App() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Memory/History state
+  const [memoryDocuments, setMemoryDocuments] = useState<MemoryDocumentMeta[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [currentDocumentId, setCurrentDocumentId] = useState<string | null>(null);
+  const autosaveTimerRef = useRef<number | null>(null);
+  const autosaveSeqRef = useRef(0);
+  const saveResetTimerRef = useRef<number | null>(null);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   // Settings panel state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -110,6 +129,73 @@ export default function App() {
     position: { x: number; y: number };
   } | null>(null);
 
+  const upsertMemoryDocument = useCallback((doc: MemoryDocumentMeta) => {
+    setMemoryDocuments((prev) => {
+      const next = [doc, ...prev.filter((d) => d.id !== doc.id)];
+      next.sort((a, b) => b.updatedAt - a.updatedAt);
+      return next;
+    });
+  }, []);
+
+  const refreshHistory = useCallback(async () => {
+    setIsHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      const result = await window.api.memory.list();
+      if (!result?.success) {
+        throw new Error(result?.error || 'Failed to load history');
+      }
+      setMemoryDocuments(Array.isArray(result.documents) ? result.documents : []);
+    } catch (err) {
+      setHistoryError(err instanceof Error ? err.message : 'Failed to load history');
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  }, []);
+
+  const handleOpenMemoryDocument = useCallback(async (id: string) => {
+    try {
+      setHistoryError(null);
+      const result = await window.api.memory.get(id);
+      if (!result?.success) {
+        throw new Error(result?.error || 'Failed to open document');
+      }
+      const doc = result.document;
+      if (!doc?.root) {
+        throw new Error('Invalid document data');
+      }
+      setCurrentDocumentId(id);
+      setSaveStatus('idle');
+      setData(doc.root as MindmapNode);
+      setViewKey((prev) => prev + 1);
+      setIsCanvasOpen(true);
+    } catch (err) {
+      setHistoryError(err instanceof Error ? err.message : 'Failed to open document');
+    }
+  }, [setData, setIsCanvasOpen, setViewKey]);
+
+  const handleDeleteMemoryDocument = useCallback(async (id: string) => {
+    try {
+      setHistoryError(null);
+      const result = await window.api.memory.delete(id);
+      if (!result?.success) {
+        throw new Error(result?.error || 'Failed to delete document');
+      }
+      setMemoryDocuments((prev) => prev.filter((d) => d.id !== id));
+      if (currentDocumentId === id) {
+        setCurrentDocumentId(null);
+      }
+    } catch (err) {
+      setHistoryError(err instanceof Error ? err.message : 'Failed to delete document');
+    }
+  }, [currentDocumentId]);
+
+  useEffect(() => {
+    if (activeTab === 'history') {
+      refreshHistory();
+    }
+  }, [activeTab, refreshHistory]);
+
   const handleGenerate = useCallback(async () => {
     if (!prompt.trim()) {
       setError('Please enter a topic for your mindmap');
@@ -147,12 +233,80 @@ export default function App() {
       setViewKey((prev) => prev + 1);
       // Auto-open fullscreen canvas after successful generation
       setIsCanvasOpen(true);
+
+      const saved = await window.api.memory.create({
+        title: parsed.title,
+        prompt: prompt.trim(),
+        model,
+        documentMode,
+        root: parsed,
+      });
+
+      if (saved?.success) {
+        if (import.meta.env.DEV) console.log('[memory] create ok', saved.document?.id);
+        setCurrentDocumentId(saved.document.id);
+        upsertMemoryDocument(saved.document);
+        setSaveStatus('saved');
+        if (saveResetTimerRef.current) window.clearTimeout(saveResetTimerRef.current);
+        saveResetTimerRef.current = window.setTimeout(() => setSaveStatus('idle'), 1200);
+      } else {
+        if (import.meta.env.DEV) console.log('[memory] create error', saved?.error);
+        setError(saved?.error || 'Failed to save to memory');
+        setSaveStatus('error');
+        if (saveResetTimerRef.current) window.clearTimeout(saveResetTimerRef.current);
+        saveResetTimerRef.current = window.setTimeout(() => setSaveStatus('idle'), 2500);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+      setSaveStatus('error');
+      if (saveResetTimerRef.current) window.clearTimeout(saveResetTimerRef.current);
+      saveResetTimerRef.current = window.setTimeout(() => setSaveStatus('idle'), 2500);
     } finally {
       setIsLoading(false);
     }
-  }, [prompt, apiKey, model, setData, setViewKey]);
+  }, [prompt, apiKey, model, documentMode, setData, setViewKey, upsertMemoryDocument]);
+
+  useEffect(() => {
+    if (!currentDocumentId || !root) return;
+
+    if (autosaveTimerRef.current) {
+      window.clearTimeout(autosaveTimerRef.current);
+    }
+
+    autosaveTimerRef.current = window.setTimeout(async () => {
+      const seq = ++autosaveSeqRef.current;
+      setSaveStatus('saving');
+
+      const saved = await window.api.memory.update({
+        id: currentDocumentId,
+        title: root.title,
+        model,
+        documentMode,
+        root,
+      });
+
+      if (seq !== autosaveSeqRef.current) return;
+
+      if (saved?.success) {
+        if (import.meta.env.DEV) console.log('[memory] autosave ok', saved.document?.id);
+        upsertMemoryDocument(saved.document);
+        setSaveStatus('saved');
+        if (saveResetTimerRef.current) window.clearTimeout(saveResetTimerRef.current);
+        saveResetTimerRef.current = window.setTimeout(() => setSaveStatus('idle'), 1200);
+      } else {
+        if (import.meta.env.DEV) console.log('[memory] autosave error', saved?.error);
+        setSaveStatus('error');
+        if (saveResetTimerRef.current) window.clearTimeout(saveResetTimerRef.current);
+        saveResetTimerRef.current = window.setTimeout(() => setSaveStatus('idle'), 2500);
+      }
+    }, 650);
+
+    return () => {
+      if (autosaveTimerRef.current) {
+        window.clearTimeout(autosaveTimerRef.current);
+      }
+    };
+  }, [currentDocumentId, documentMode, model, root, upsertMemoryDocument]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -167,6 +321,7 @@ export default function App() {
     setMenuState(null);
     setSelectedNodeId(null);
     setEditingNodeId(null);
+    setSaveStatus('idle');
   };
 
   // Handle node click
@@ -529,24 +684,98 @@ export default function App() {
 
       {activeTab === 'history' && (
         <section className={styles.historySection}>
-          <div className={styles.historyEmpty}>
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#444" strokeWidth="1.5" style={{ marginBottom: '20px' }}>
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-            <h3>Your journey begins here</h3>
-            <p>
-              Once you start creating mindmaps, they'll appear here like chapters in your exploration diary.
-              Each map tells a story of curiosity and discovery.
-            </p>
+          <div className={styles.historyHeader}>
+            <div className={styles.historyHeaderLeft}>
+              <h2 className={styles.historyTitle}>Memory</h2>
+              <p className={styles.historySubtitle}>Your saved mindmaps, updated automatically as you edit.</p>
+            </div>
             <button
               className={styles.secondaryButton}
-              onClick={() => setActiveTab('generate')}
-              style={{ marginTop: '24px' }}
+              onClick={refreshHistory}
+              disabled={isHistoryLoading}
             >
-              Create your first mindmap →
+              {isHistoryLoading ? 'Refreshing…' : 'Refresh'}
             </button>
           </div>
+
+          {historyError && (
+            <div className={styles.error} style={{ maxWidth: 700, margin: '0 auto 20px' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              {historyError}
+            </div>
+          )}
+
+          {isHistoryLoading ? (
+            <div className={styles.historyLoading}>Loading…</div>
+          ) : memoryDocuments.length === 0 ? (
+            <div className={styles.historyEmpty}>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#444" strokeWidth="1.5" style={{ marginBottom: '20px' }}>
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              <h3>Your journey begins here</h3>
+              <p>
+                Once you start creating mindmaps, they'll appear here like chapters in your exploration diary.
+                Each map tells a story of curiosity and discovery.
+              </p>
+              <button
+                className={styles.secondaryButton}
+                onClick={() => setActiveTab('generate')}
+                style={{ marginTop: '24px' }}
+              >
+                Create your first mindmap →
+              </button>
+            </div>
+          ) : (
+            <div className={styles.historyList}>
+              {memoryDocuments.map((doc) => (
+                <div
+                  key={doc.id}
+                  className={`${styles.historyCard} ${currentDocumentId === doc.id ? styles.historyCardActive : ''}`}
+                  onClick={() => handleOpenMemoryDocument(doc.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleOpenMemoryDocument(doc.id);
+                    }
+                  }}
+                >
+                  <div className={styles.historyCardMain}>
+                    <div className={styles.historyCardTitle}>{doc.title || 'Untitled'}</div>
+                    <div className={styles.historyCardMeta}>
+                      Last updated {new Date(doc.updatedAt).toLocaleString()}
+                    </div>
+                  </div>
+                  <div className={styles.historyCardActions}>
+                    <button
+                      className={styles.historyActionButton}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenMemoryDocument(doc.id);
+                      }}
+                    >
+                      Open
+                    </button>
+                    <button
+                      className={`${styles.historyActionButton} ${styles.historyActionDanger}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteMemoryDocument(doc.id);
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       )}
 
@@ -564,6 +793,7 @@ export default function App() {
         onClose={handleCloseCanvas}
         title={root?.title || 'Mindmap'}
         onExport={handleExport}
+        saveStatus={currentDocumentId ? saveStatus : 'idle'}
       >
         {root && (
           <Suspense fallback={<div className={styles.loadingCanvas}>Loading visualization...</div>}>
