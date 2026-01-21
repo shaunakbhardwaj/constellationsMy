@@ -3,7 +3,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import * as d3 from 'd3';
 import { MindmapNode } from '@/lib/parseMarkdown';
-import { DocumentMode, MODE_PALETTES, MODE_ROOT_COLORS } from './DocumentModeSelector';
+import { DocumentMode, MODE_PALETTES, MODE_ROOT_COLORS } from '@/lib/documentModes';
 import styles from './MindmapCanvas.module.css';
 
 // Max children per side before alternating

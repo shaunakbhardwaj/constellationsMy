@@ -2,20 +2,21 @@ import { useState, useCallback, useEffect, lazy, Suspense } from 'react';
 import { parseMarkdownToTree, MindmapNode } from '@/lib/parseMarkdown';
 import { useMindmapState } from '@/lib/useMindmapState';
 import { DEFAULT_MODEL } from '@/lib/openrouter';
-import CanvasOverlay from '@/components/CanvasOverlay';
-import NodeContextMenu from '@/components/NodeContextMenu';
-import NotesModal from '@/components/NotesModal';
-import DeleteConfirmDialog from '@/components/DeleteConfirmDialog';
-import SettingsPanel from '@/components/SettingsPanel';
-import AIExpandBar from '@/components/AIExpandBar';
-import DocumentModeSelector, { DocumentMode } from '@/components/DocumentModeSelector';
+import CanvasOverlay from '@/components/layout/CanvasOverlay';
+import NodeContextMenu from '@/components/mindmap/NodeContextMenu';
+import NotesModal from '@/components/mindmap/NotesModal';
+import DeleteConfirmDialog from '@/components/mindmap/DeleteConfirmDialog';
+import SettingsPanel from '@/components/settings/SettingsPanel';
+import AIExpandBar from '@/components/mindmap/AIExpandBar';
+import DocumentModeSelector from '@/components/home/DocumentModeSelector';
+import type { DocumentMode } from '@/lib/documentModes';
 // import styles from './page.module.css'; // We should verify if we want to keep CSS modules or move to Tailwind/global. For now keeping it if file exists.
 // Actually standard Vite doesn't support .module.css behavior interchangeably without setup, but usually works.
 // However, the import style 'styles.container' implies modules.
 import styles from './page.module.css';
 
 // Dynamic import replacement -> React.lazy
-const MindmapCanvas = lazy(() => import('@/components/MindmapCanvas'));
+const MindmapCanvas = lazy(() => import('@/components/mindmap/MindmapCanvas'));
 
 // Storage keys
 const STORAGE_KEYS = {
