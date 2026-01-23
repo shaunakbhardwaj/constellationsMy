@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CONSTELLATIONS // SYSTEM ACTIVE</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&family=Teko:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0b0c10;
+            --bg-light: #1f2833;
+            --text-main: #c5c6c7;
+            --accent: #66fcf1;
+            --accent-dim: #45a29e;
+            --font-display: 'Teko', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            font-family: var(--font-mono);
+            overflow-x: hidden;
+            background-image:
+                linear-gradient(rgba(11, 12, 16, 0.9), rgba(11, 12, 16, 0.9)),
+                url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%231f2833' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        /* Scanned Grid Overlay */
+        .scan-line {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: var(--accent);
+            opacity: 0.1;
+            animation: scan 3s linear infinite;
+            z-index: 999;
+            pointer-events: none;
+        }
+
+        @keyframes scan {
+            from {
+                top: -5%;
+            }
+
+            to {
+                top: 105%;
+            }
+        }
+
+        header {
+            padding: 1rem 3rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--bg-light);
+            text-transform: uppercase;
+        }
+
+        .logo {
+            font-family: var(--font-display);
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--accent);
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo::before {
+            content: '';
+            display: block;
+            width: 10px;
+            height: 10px;
+            background: var(--accent);
+            box-shadow: 0 0 10px var(--accent);
+        }
+
+        .status {
+            font-size: 0.8rem;
+            color: var(--accent-dim);
+            letter-spacing: 1px;
+        }
+
+        main {
+            min-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            position: relative;
+        }
+
+        h1 {
+            font-family: var(--font-display);
+            font-size: 10rem;
+            line-height: 0.8;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: -2px;
+            position: relative;
+            z-index: 2;
+        }
+
+        h1 span {
+            color: var(--bg-light);
+            -webkit-text-stroke: 2px var(--accent);
+        }
+
+        p.sub {
+            font-size: 1.2rem;
+            max-width: 600px;
+            margin: 2rem auto;
+            color: var(--accent-dim);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+
+        .cta-box {
+            margin-top: 3rem;
+            border: 2px solid var(--accent);
+            padding: 1rem 3rem;
+            font-family: var(--font-display);
+            font-size: 2rem;
+            color: var(--accent);
+            text-transform: uppercase;
+            text-decoration: none;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+            background: rgba(102, 252, 241, 0.05);
+        }
+
+        .cta-box:hover {
+            background: var(--accent);
+            color: var(--bg);
+            box-shadow: 0 0 50px var(--accent);
+        }
+
+        .cta-box::before,
+        .cta-box::after {
+            content: '+';
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1rem;
+        }
+
+        .cta-box::before {
+            left: 10px;
+        }
+
+        .cta-box::after {
+            right: 10px;
+        }
+
+        /* The Core Engine */
+        .engine-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 500px;
+            height: 500px;
+            z-index: 1;
+            perspective: 800px;
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 1px solid var(--accent-dim);
+            border-radius: 50%;
+            transform-style: preserve-3d;
+        }
+
+        .ring-1 {
+            width: 300px;
+            height: 300px;
+            border-width: 2px;
+            border-left-color: transparent;
+            border-right-color: transparent;
+            animation: rotate1 10s infinite linear;
+        }
+
+        .ring-2 {
+            width: 400px;
+            height: 400px;
+            border: 1px dashed var(--accent);
+            animation: rotate2 15s infinite linear reverse;
+        }
+
+        .ring-3 {
+            width: 200px;
+            height: 200px;
+            border-width: 4px;
+            border-top-color: transparent;
+            animation: rotate1 5s infinite linear;
+        }
+
+        .core {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            background: var(--accent);
+            box-shadow: 0 0 100px var(--accent);
+        }
+
+        @keyframes rotate1 {
+            0% {
+                transform: translate(-50%, -50%) rotateZ(0deg) rotateX(45deg);
+            }
+
+            100% {
+                transform: translate(-50%, -50%) rotateZ(360deg) rotateX(45deg);
+            }
+        }
+
+        @keyframes rotate2 {
+            0% {
+                transform: translate(-50%, -50%) rotateZ(0deg) rotateY(45deg);
+            }
+
+            100% {
+                transform: translate(-50%, -50%) rotateZ(360deg) rotateY(45deg);
+            }
+        }
+
+        .data-stream {
+            position: absolute;
+            bottom: 2rem;
+            right: 2rem;
+            text-align: right;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            color: var(--accent-dim);
+        }
+
+        .data-row span {
+            color: #fff;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 5rem;
+            }
+
+            .engine-container {
+                width: 300px;
+                height: 300px;
+            }
+
+            .ring-1 {
+                width: 200px;
+                height: 200px;
+            }
+
+            .ring-2 {
+                width: 250px;
+                height: 250px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="scan-line"></div>
+
+    <header>
+        <div class="logo">Constellations</div>
+        <div class="status">
+            SYS.VER.2.0.4<br>
+            <span style="color:var(--accent)">ONLINE</span>
+        </div>
+    </header>
+
+    <main>
+        <div class="engine-container">
+            <div class="ring ring-1"></div>
+            <div class="ring ring-2"></div>
+            <div class="ring ring-3"></div>
+            <div class="core"></div>
+        </div>
+
+        <h1>Grow Your<br><span>Mind Map</span></h1>
+        <p class="sub">// Intelligent Structure Generation Protocol Engaged</p>
+
+        <a href="#" class="cta-box">Initialize</a>
+
+        <div class="data-stream">
+            <div class="data-row">NODES: <span>14,204</span></div>
+            <div class="data-row">LINKS: <span>42,891</span></div>
+            <div class="data-row">CPU: <span>12%</span></div>
+        </div>
+    </main>
+
+    <script>
+        // Randomly update numbers
+        setInterval(() => {
+            const nodes = document.querySelectorAll('.data-row span');
+            nodes.forEach(node => {
+                let val = parseInt(node.innerText.replace(/,/g, ''));
+                val += Math.floor(Math.random() * 10) - 2;
+                node.innerText = val.toLocaleString();
+            });
+        }, 500);
+    </script>
+</body>
+
+</html>
