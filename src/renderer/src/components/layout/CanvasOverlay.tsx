@@ -9,6 +9,7 @@ interface CanvasOverlayProps {
     title: string;
     children: ReactNode;
     onExport?: () => void;
+    saveStatus?: 'idle' | 'saving' | 'saved' | 'error';
 }
 
 export default function CanvasOverlay({
@@ -17,6 +18,7 @@ export default function CanvasOverlay({
     title,
     children,
     onExport,
+    saveStatus = 'idle',
 }: CanvasOverlayProps) {
     // Handle keyboard shortcuts
     const handleKeyDown = useCallback(
@@ -64,6 +66,20 @@ export default function CanvasOverlay({
                 </div>
 
                 <div className={styles.headerRight}>
+                    {saveStatus !== 'idle' && (
+                        <div
+                            className={`${styles.saveBadge} ${
+                                saveStatus === 'saving'
+                                    ? styles.saveBadgeSaving
+                                    : saveStatus === 'saved'
+                                        ? styles.saveBadgeSaved
+                                        : styles.saveBadgeError
+                            }`}
+                            aria-live="polite"
+                        >
+                            {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved' : 'Save failed'}
+                        </div>
+                    )}
                     <div className={styles.hint}>
                         <kbd>Esc</kbd> Close
                         {onExport && (

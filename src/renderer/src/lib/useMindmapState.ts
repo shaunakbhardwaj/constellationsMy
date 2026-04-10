@@ -6,6 +6,8 @@ import { MindmapNode } from './parseMarkdown';
 export interface MindmapState {
     root: MindmapNode | null;
     selectedNodeId: string | null;
+    selectedNodeIds: string[];
+    selectedPathOrder: string[];
     editingNodeId: string | null;
     expandingNodeId: string | null;
     focusedNodeId: string | null;
@@ -94,6 +96,8 @@ const getAncestorIds = (root: MindmapNode, nodeId: string): string[] => {
 export function useMindmapState(initialData: MindmapNode | null) {
     const [root, setRoot] = useState<MindmapNode | null>(initialData ? cloneTree(initialData) : null);
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+    const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
+    const [selectedPathOrder, setSelectedPathOrder] = useState<string[]>([]);
     const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
     const [expandingNodeId, setExpandingNodeId] = useState<string | null>(null);
     const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
@@ -102,6 +106,8 @@ export function useMindmapState(initialData: MindmapNode | null) {
     const setData = useCallback((data: MindmapNode | null) => {
         setRoot(data ? cloneTree(data) : null);
         setSelectedNodeId(null);
+        setSelectedNodeIds([]);
+        setSelectedPathOrder([]);
         setEditingNodeId(null);
         setExpandingNodeId(null);
         setFocusedNodeId(null);
@@ -160,6 +166,8 @@ export function useMindmapState(initialData: MindmapNode | null) {
         if (selectedNodeId === nodeId) {
             setSelectedNodeId(null);
         }
+        setSelectedNodeIds((prev) => prev.filter((id) => id !== nodeId));
+        setSelectedPathOrder((prev) => prev.filter((id) => id !== nodeId));
     }, [root, selectedNodeId]);
 
     // Set color for node and descendants
@@ -336,10 +344,45 @@ export function useMindmapState(initialData: MindmapNode | null) {
         return null;
     }, [root]);
 
+    const togglePathSelection = useCallback((nodeId: string) => {
+        setSelectedNodeIds((prev) => {
+            if (prev.includes(nodeId)) {
+                return prev.filter((id) => id !== nodeId);
+            }
+            return [...prev, nodeId];
+        });
+
+        setSelectedPathOrder((prev) => {
+            if (prev.includes(nodeId)) {
+                return prev.filter((id) => id !== nodeId);
+            }
+            return [...prev, nodeId];
+        });
+    }, []);
+
+    const clearPathSelection = useCallback(() => {
+        setSelectedNodeIds([]);
+        setSelectedPathOrder([]);
+    }, []);
+
+    const movePathNode = useCallback((nodeId: string, direction: 'up' | 'down') => {
+        setSelectedPathOrder((prev) => {
+            const idx = prev.indexOf(nodeId);
+            if (idx === -1) return prev;
+            const nextIdx = direction === 'up' ? idx - 1 : idx + 1;
+            if (nextIdx < 0 || nextIdx >= prev.length) return prev;
+            const next = [...prev];
+            [next[idx], next[nextIdx]] = [next[nextIdx], next[idx]];
+            return next;
+        });
+    }, []);
+
     return {
         // State
         root,
         selectedNodeId,
+        selectedNodeIds,
+        selectedPathOrder,
         editingNodeId,
         expandingNodeId,
         focusedNodeId,
@@ -347,6 +390,8 @@ export function useMindmapState(initialData: MindmapNode | null) {
         // Setters
         setData,
         setSelectedNodeId,
+        setSelectedNodeIds,
+        setSelectedPathOrder,
         setEditingNodeId,
         setExpandingNodeId,
         setFocusedNodeId,
@@ -373,6 +418,9 @@ export function useMindmapState(initialData: MindmapNode | null) {
         // Focus
         isNodeInFocus,
         getMainBranchId,
+        togglePathSelection,
+        clearPathSelection,
+        movePathNode,
 
         // Helpers
         getNode,

@@ -414,6 +414,138 @@
   padding: 40px;
 }
 
+.historyHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.historyHeaderLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.historyTitle {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+}
+
+.historySubtitle {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--foreground-muted);
+}
+
+.historyLoading {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--foreground-muted);
+  font-size: 14px;
+}
+
+.historyList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.historyCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px 18px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.historyCard:hover {
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-glow);
+}
+
+.historyCard:focus-visible {
+  box-shadow: var(--shadow-glow);
+  border-color: var(--glass-border-hover);
+}
+
+.historyCardActive {
+  border-color: var(--foreground);
+}
+
+.historyCardMain {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.historyCardTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.historyCardMeta {
+  font-size: 12px;
+  color: var(--foreground-muted);
+}
+
+.historyCardActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.historyActionButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--foreground-muted);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.historyActionButton:hover {
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
+  color: var(--foreground);
+}
+
+.historyActionDanger {
+  border-color: rgba(255, 100, 100, 0.25);
+  color: #ff8888;
+}
+
+.historyActionDanger:hover {
+  border-color: rgba(255, 100, 100, 0.45);
+  background: rgba(255, 100, 100, 0.1);
+  color: #ff8888;
+}
+
 .historyEmpty {
   display: flex;
   flex-direction: column;
@@ -575,5 +707,306 @@
 
   .floatingNodes {
     display: none;
+  }
+}
+
+.topBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 28px;
+  border-bottom: 1px solid var(--glass-border);
+  background: rgba(10, 10, 16, 0.82);
+  backdrop-filter: blur(16px);
+}
+
+.brandEyebrow {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--foreground-dim);
+}
+
+.brandTitle {
+  margin-top: 4px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.navLink {
+  padding: 10px 14px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--foreground-dim);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.navLinkActive {
+  background: var(--glass-bg);
+  color: var(--foreground);
+  border-color: var(--glass-border);
+}
+
+.heroCard {
+  width: min(980px, 100%);
+  padding: 28px;
+  border-radius: 28px;
+  background: linear-gradient(145deg, rgba(20, 24, 34, 0.92), rgba(12, 14, 22, 0.96));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.28);
+}
+
+.heroCopy {
+  margin-bottom: 24px;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #93c5fd;
+}
+
+.heroHeading {
+  margin: 0;
+  font-size: clamp(32px, 5vw, 56px);
+  line-height: 1.02;
+  color: var(--foreground);
+}
+
+.heroBody {
+  margin: 18px 0 0;
+  max-width: 680px;
+  color: var(--foreground-muted);
+  font-size: 16px;
+}
+
+.inputModeRow {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.inputModeButton {
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--foreground-muted);
+  cursor: pointer;
+}
+
+.inputModeButtonActive {
+  background: linear-gradient(135deg, #0ea5e9, #8b5cf6);
+  color: white;
+  border-color: transparent;
+}
+
+.sourcePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pasteInput {
+  min-height: 220px;
+  width: 100%;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--foreground);
+  resize: vertical;
+  font: inherit;
+}
+
+.uploadPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 28px;
+  border-radius: 24px;
+  border: 1px dashed rgba(148, 163, 184, 0.45);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+}
+
+.uploadTitle {
+  color: var(--foreground-muted);
+  font-size: 15px;
+}
+
+.hiddenFileInput {
+  display: none;
+}
+
+.uploadButton,
+.primaryAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(135deg, #0ea5e9, #8b5cf6);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primaryAction:disabled,
+.uploadButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.successBanner {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(16, 185, 129, 0.14);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: #b7f7dc;
+}
+
+.overlayWorkspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  height: 100%;
+}
+
+.overlayCanvasPane {
+  position: relative;
+  min-width: 0;
+}
+
+.overlayRail {
+  border-left: 1px solid var(--glass-border);
+  background: rgba(10, 14, 22, 0.88);
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.railSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.railHeading {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--foreground-dim);
+}
+
+.railCard {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.railTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.railBody {
+  margin: 0;
+  font-size: 14px;
+  color: var(--foreground-muted);
+  line-height: 1.5;
+}
+
+.railMetaRow,
+.artifactList,
+.railActions,
+.pathControls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.metaPill {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.18);
+  color: #dbe4ff;
+  font-size: 12px;
+}
+
+.pathList,
+.handoffList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pathItem,
+.handoffItem {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--glass-border);
+}
+
+.pathIndex {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--foreground-dim);
+}
+
+.pathTitle {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.miniButton {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.emptyHint {
+  color: var(--foreground-dim);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+@media (max-width: 1100px) {
+  .overlayWorkspace {
+    grid-template-columns: 1fr;
+  }
+
+  .overlayRail {
+    border-left: none;
+    border-top: 1px solid var(--glass-border);
   }
 }

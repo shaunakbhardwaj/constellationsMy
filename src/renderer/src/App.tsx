@@ -1,81 +1,104 @@
-import { useState, useCallback, useEffect, lazy, Suspense } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { parseMarkdownToTree, MindmapNode } from '@/lib/parseMarkdown';
 import { useMindmapState } from '@/lib/useMindmapState';
 import { DEFAULT_MODEL } from '@/lib/openrouter';
-import CanvasOverlay from '@/components/CanvasOverlay';
-import NodeContextMenu from '@/components/NodeContextMenu';
-import NotesModal from '@/components/NotesModal';
-import DeleteConfirmDialog from '@/components/DeleteConfirmDialog';
-import SettingsPanel from '@/components/SettingsPanel';
-import AIExpandBar, { ExpansionMode } from '@/components/AIExpandBar';
-// import styles from './page.module.css'; // We should verify if we want to keep CSS modules or move to Tailwind/global. For now keeping it if file exists.
-// Actually standard Vite doesn't support .module.css behavior interchangeably without setup, but usually works.
-// However, the import style 'styles.container' implies modules.
+import CanvasOverlay from '@/components/layout/CanvasOverlay';
+import NodeContextMenu from '@/components/mindmap/NodeContextMenu';
+import NotesModal from '@/components/mindmap/NotesModal';
+import DeleteConfirmDialog from '@/components/mindmap/DeleteConfirmDialog';
+import SettingsPanel from '@/components/settings/SettingsPanel';
+import DiagnosticsPanel from '@/components/settings/DiagnosticsPanel';
+import AIExpandBar from '@/components/mindmap/AIExpandBar';
+import type {
+  BranchBriefArtifact,
+  ExecutionHandoffArtifact,
+  InputKind,
+  SourceDocument,
+  StoreMapMeta,
+  ThinkingLens,
+} from '@/lib/contracts';
+import { logEvent } from '@/lib/logger';
 import styles from './page.module.css';
 
-// Dynamic import replacement -> React.lazy
-const MindmapCanvas = lazy(() => import('@/components/MindmapCanvas'));
+const MindmapCanvas = lazy(() => import('@/components/mindmap/MindmapCanvas'));
 
-// Storage keys
 const STORAGE_KEYS = {
   API_KEY: 'mindmap_openrouter_api_key',
   MODEL: 'mindmap_selected_model',
 };
 
+type InputView = 'ask' | 'paste' | 'pdf';
+type ArtifactRecord = BranchBriefArtifact | ExecutionHandoffArtifact;
+type LogEntry = {
+  ts: string;
+  level: 'info' | 'warn' | 'error';
+  scope: string;
+  message: string;
+  meta?: Record<string, unknown>;
+};
+type LLMEntry = {
+  ts: string;
+  kind: 'llm';
+  requestId: string;
+  operation: string;
+  model: string;
+  systemPrompt: string;
+  userPrompt: string;
+  temperature?: number;
+  maxTokens?: number;
+  responseFormat?: Record<string, unknown>;
+  status: 'success' | 'error';
+  content?: string;
+  error?: Record<string, unknown>;
+};
+
 export default function App() {
+  const [inputView, setInputView] = useState<InputView>('ask');
   const [prompt, setPrompt] = useState('');
+  const [pasteText, setPasteText] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [model, setModel] = useState(DEFAULT_MODEL);
   const [isHydrated, setIsHydrated] = useState(false);
-
-  // Hydrate from localStorage on mount
-  useEffect(() => {
-    const storedApiKey = localStorage.getItem(STORAGE_KEYS.API_KEY)
-      || import.meta.env.VITE_OPENROUTER_API_KEY
-      || '';
-    const storedModel = localStorage.getItem(STORAGE_KEYS.MODEL) || DEFAULT_MODEL;
-    setApiKey(storedApiKey);
-    setModel(storedModel);
-    setIsHydrated(true);
-  }, []);
-
-  // Persist API key to localStorage
-  useEffect(() => {
-    if (isHydrated) {
-      localStorage.setItem(STORAGE_KEYS.API_KEY, apiKey);
-    }
-  }, [apiKey, isHydrated]);
-
-  // Persist model to localStorage
-  useEffect(() => {
-    if (isHydrated && model) {
-      localStorage.setItem(STORAGE_KEYS.MODEL, model);
-    }
-  }, [model, isHydrated]);
-
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Settings panel state
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [memoryDocuments, setMemoryDocuments] = useState<StoreMapMeta[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [currentMapId, setCurrentMapId] = useState<string | null>(null);
+  const [currentSource, setCurrentSource] = useState<SourceDocument | null>(null);
+  const [currentArtifacts, setCurrentArtifacts] = useState<ArtifactRecord[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-  // Navigation state
+  const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
+  const [isDiagnosticsLoading, setIsDiagnosticsLoading] = useState(false);
+  const [diagnosticEntries, setDiagnosticEntries] = useState<LogEntry[]>([]);
+  const [logPath, setLogPath] = useState('');
+  const [llmEntries, setLLMEntries] = useState<LLMEntry[]>([]);
+  const [llmLogPath, setLLMLogPath] = useState('');
   const [activeTab, setActiveTab] = useState<'generate' | 'history'>('generate');
-
-  // Canvas overlay state
   const [isCanvasOpen, setIsCanvasOpen] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedLens, setSelectedLens] = useState<ThinkingLens>('default');
   const [viewKey, setViewKey] = useState(0);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
-  // Mindmap state management
+  const autosaveTimerRef = useRef<number | null>(null);
+  const autosaveSeqRef = useRef(0);
+  const saveResetTimerRef = useRef<number | null>(null);
+
   const mindmapState = useMindmapState(null);
   const {
     root,
     selectedNodeId,
+    selectedNodeIds,
+    selectedPathOrder,
     editingNodeId,
     expandingNodeId,
     focusedNodeId,
     setData,
     setSelectedNodeId,
+    setSelectedNodeIds,
+    setSelectedPathOrder,
     setEditingNodeId,
     setExpandingNodeId,
     setFocusedNodeId,
@@ -88,18 +111,19 @@ export default function App() {
     expandNode,
     toggleCollapse,
     collapseSiblings,
+    getNode,
     getNodePath,
     getDescendantCount,
     isNodeInFocus,
+    togglePathSelection,
+    clearPathSelection,
+    movePathNode,
   } = mindmapState;
 
-  // Context menu state
   const [menuState, setMenuState] = useState<{
     node: MindmapNode;
     position: { x: number; y: number };
   } | null>(null);
-
-  // Modal states
   const [notesModalNode, setNotesModalNode] = useState<MindmapNode | null>(null);
   const [deleteConfirmNode, setDeleteConfirmNode] = useState<MindmapNode | null>(null);
   const [aiExpandModalState, setAiExpandModalState] = useState<{
@@ -107,443 +131,662 @@ export default function App() {
     position: { x: number; y: number };
   } | null>(null);
 
-  const handleGenerate = useCallback(async () => {
-    if (!prompt.trim()) {
-      setError('Please enter a topic for your mindmap');
-      return;
+  useEffect(() => {
+    const storedApiKey = localStorage.getItem(STORAGE_KEYS.API_KEY) || import.meta.env.VITE_OPENROUTER_API_KEY || '';
+    const storedModel = localStorage.getItem(STORAGE_KEYS.MODEL) || DEFAULT_MODEL;
+    setApiKey(storedApiKey);
+    setModel(storedModel);
+    setIsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (isHydrated) {
+      localStorage.setItem(STORAGE_KEYS.API_KEY, apiKey);
     }
+  }, [apiKey, isHydrated]);
 
-    if (!apiKey.trim()) {
-      setError('Please add your OpenRouter API key in Settings');
-      setIsSettingsOpen(true);
-      return;
+  useEffect(() => {
+    if (isHydrated && model) {
+      localStorage.setItem(STORAGE_KEYS.MODEL, model);
     }
+  }, [model, isHydrated]);
 
-    setIsLoading(true);
-    setError(null);
+  useEffect(() => {
+    if (!successMessage) return;
+    const timer = window.setTimeout(() => setSuccessMessage(null), 2400);
+    return () => window.clearTimeout(timer);
+  }, [successMessage]);
 
+  const refreshDiagnostics = useCallback(async () => {
+    setIsDiagnosticsLoading(true);
     try {
-      // IPC Call
-      const result = await window.api.generateMindmap({
-        prompt: prompt.trim(),
-        apiKey: apiKey.trim(),
+      const [result, llmResult] = await Promise.all([
+        window.api.log.recent(150),
+        window.api.log.recentLLM(60),
+      ]);
+      if (result?.success) {
+        setDiagnosticEntries(Array.isArray(result.entries) ? result.entries : []);
+        setLogPath(result.path || '');
+      }
+      if (llmResult?.success) {
+        setLLMEntries(Array.isArray(llmResult.entries) ? llmResult.entries : []);
+        setLLMLogPath(llmResult.path || '');
+      }
+    } finally {
+      setIsDiagnosticsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      void logEvent({
+        level: 'error',
+        scope: 'renderer.window',
+        message: event.message || 'Unhandled renderer error',
+        meta: {
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno,
+          stack: event.error instanceof Error ? event.error.stack : undefined,
+        },
+      });
+    };
+
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      void logEvent({
+        level: 'error',
+        scope: 'renderer.window',
+        message: 'Unhandled promise rejection',
+        meta: {
+          reason: event.reason instanceof Error ? { message: event.reason.message, stack: event.reason.stack } : String(event.reason),
+        },
+      });
+    };
+
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
+  }, []);
+
+  const upsertMemoryDocument = useCallback((doc: StoreMapMeta) => {
+    setMemoryDocuments((prev) => {
+      const next = [doc, ...prev.filter((entry) => entry.id !== doc.id)];
+      next.sort((a, b) => b.updatedAt - a.updatedAt);
+      return next;
+    });
+  }, []);
+
+  const refreshHistory = useCallback(async () => {
+    setIsHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      const result = await window.api.memory.list();
+      if (!result?.success) {
+        throw new Error(result?.error || 'Failed to load map history');
+      }
+      setMemoryDocuments(Array.isArray(result.documents) ? result.documents : []);
+    } catch (err) {
+      setHistoryError(err instanceof Error ? err.message : 'Failed to load history');
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  }, []);
+
+  const refreshArtifacts = useCallback(async (mapId: string) => {
+    const result = await window.api.artifact.listByDocument(mapId);
+    if (result?.success) {
+      setCurrentArtifacts(Array.isArray(result.artifacts) ? result.artifacts : []);
+    }
+  }, []);
+
+  const handleOpenMemoryDocument = useCallback(
+    async (id: string) => {
+      try {
+        setHistoryError(null);
+        const result = await window.api.memory.get(id);
+        if (!result?.success) {
+          throw new Error(result?.error || 'Failed to open document');
+        }
+        const doc = result.document as { root: MindmapNode; selectedNodeIds?: string[]; selectedPathOrder?: string[] };
+        if (!doc?.root) {
+          throw new Error('Invalid document data');
+        }
+        setCurrentMapId(id);
+        setCurrentSource(result.source as SourceDocument);
+        setSaveStatus('idle');
+        setData(doc.root);
+        setSelectedNodeIds(doc.selectedNodeIds || []);
+        setSelectedPathOrder(doc.selectedPathOrder || []);
+        setSelectionMode((doc.selectedNodeIds || []).length > 0);
+        setViewKey((prev) => prev + 1);
+        setIsCanvasOpen(true);
+        setActiveTab('generate');
+        await refreshArtifacts(id);
+      } catch (err) {
+        void logEvent({
+          level: 'error',
+          scope: 'renderer.history',
+          message: 'Failed to open compression map',
+          meta: { id, error: err instanceof Error ? err.message : String(err) },
+        });
+        setHistoryError(err instanceof Error ? err.message : 'Failed to open document');
+      }
+    },
+    [refreshArtifacts, setData, setSelectedNodeIds, setSelectedPathOrder]
+  );
+
+  const handleDeleteMemoryDocument = useCallback(
+    async (id: string) => {
+      try {
+        setHistoryError(null);
+        const result = await window.api.memory.delete(id);
+        if (!result?.success) {
+          throw new Error(result?.error || 'Failed to delete document');
+        }
+        setMemoryDocuments((prev) => prev.filter((entry) => entry.id !== id));
+        if (currentMapId === id) {
+          setCurrentMapId(null);
+          setCurrentSource(null);
+          setCurrentArtifacts([]);
+        }
+      } catch (err) {
+        setHistoryError(err instanceof Error ? err.message : 'Failed to delete document');
+      }
+    },
+    [currentMapId]
+  );
+
+  useEffect(() => {
+    if (activeTab === 'history') {
+      refreshHistory();
+    }
+  }, [activeTab, refreshHistory]);
+
+  const createSourceAndMap = useCallback(
+    async (params: { inputKind: InputKind; text?: string; prompt?: string; file?: File | null }) => {
+      if (!apiKey.trim()) {
+        setError('Please add your OpenRouter API key in Settings.');
+        setIsSettingsOpen(true);
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      try {
+        let sourceResult;
+        let sourceText = params.text || params.prompt || '';
+
+        if (params.inputKind === 'pdf') {
+          if (!params.file) {
+            throw new Error('Choose a PDF file first.');
+          }
+          const bytes = await params.file.arrayBuffer();
+          sourceResult = await window.api.source.ingestPdf({
+            name: params.file.name,
+            bytes,
+          });
+          sourceText = sourceResult?.source?.sourceText || '';
+        } else {
+          sourceResult = await window.api.source.ingestText({
+            inputKind: params.inputKind,
+            text: params.text,
+            prompt: params.prompt,
+            title: params.inputKind === 'prompt' ? params.prompt : undefined,
+          });
+        }
+
+        if (!sourceResult?.success) {
+          throw new Error(sourceResult?.error || 'Failed to ingest source');
+        }
+
+        const source = sourceResult.source as SourceDocument;
+        const mapResult = await window.api.map.generateCompression({
+          sourceDocumentId: source.id,
+          sourceText,
+          prompt: params.prompt,
+          apiKey: apiKey.trim(),
+          model,
+        });
+
+        if (!mapResult?.success) {
+          throw new Error(mapResult?.error || 'Failed to generate compression map');
+        }
+
+        const parsed = parseMarkdownToTree(mapResult.markdown);
+        if (!parsed) {
+          throw new Error('Failed to parse generated map');
+        }
+
+        const saved = await window.api.memory.create({
+          sourceDocumentId: source.id,
+          title: parsed.title,
+          root: parsed,
+          model: mapResult.model || model,
+          selectedNodeIds: [],
+          selectedPathOrder: [],
+          lastUsedLens: 'default',
+        });
+
+        if (!saved?.success) {
+          throw new Error(saved?.error || 'Failed to save compression map');
+        }
+
+        setCurrentMapId(saved.document.id);
+        setCurrentSource(source);
+        setCurrentArtifacts([]);
+        setData(parsed);
+        clearPathSelection();
+        setSelectionMode(false);
+        setViewKey((prev) => prev + 1);
+        setIsCanvasOpen(true);
+        upsertMemoryDocument(saved.document);
+        setSaveStatus('saved');
+        setSuccessMessage('Compression map created.');
+      } catch (err) {
+        void logEvent({
+          level: 'error',
+          scope: 'renderer.source',
+          message: 'Failed to create source and map',
+          meta: { inputKind: params.inputKind, error: err instanceof Error ? err.message : String(err) },
+        });
+        setError(err instanceof Error ? err.message : 'Failed to create map');
+        setSaveStatus('error');
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [apiKey, clearPathSelection, model, setData, upsertMemoryDocument]
+  );
+
+  useEffect(() => {
+    if (!currentMapId || !root) return;
+
+    if (autosaveTimerRef.current) {
+      window.clearTimeout(autosaveTimerRef.current);
+    }
+
+    autosaveTimerRef.current = window.setTimeout(async () => {
+      const seq = ++autosaveSeqRef.current;
+      setSaveStatus('saving');
+
+      const saved = await window.api.memory.update({
+        id: currentMapId,
+        title: root.title,
+        root,
         model,
+        lastUsedLens: selectedLens,
+        selectedNodeIds,
+        selectedPathOrder,
       });
 
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to generate mindmap');
+      if (seq !== autosaveSeqRef.current) return;
+
+      if (saved?.success) {
+        upsertMemoryDocument(saved.document);
+        setSaveStatus('saved');
+      } else {
+        setSaveStatus('error');
       }
 
-      const parsed = parseMarkdownToTree(result.markdown);
-      if (!parsed) {
-        throw new Error('Failed to parse generated content');
+      if (saveResetTimerRef.current) window.clearTimeout(saveResetTimerRef.current);
+      saveResetTimerRef.current = window.setTimeout(() => setSaveStatus('idle'), 1200);
+    }, 650);
+
+    return () => {
+      if (autosaveTimerRef.current) {
+        window.clearTimeout(autosaveTimerRef.current);
       }
+    };
+  }, [currentMapId, model, root, selectedLens, selectedNodeIds, selectedPathOrder, upsertMemoryDocument]);
 
-      setData(parsed);
-      setViewKey((prev) => prev + 1);
-      // Auto-open fullscreen canvas after successful generation
-      setIsCanvasOpen(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setIsLoading(false);
+  const handlePromptGenerate = useCallback(() => {
+    if (!prompt.trim()) {
+      setError('Enter a question or task to compress into a map.');
+      return;
     }
-  }, [prompt, apiKey, model, setData, setViewKey]);
+    createSourceAndMap({ inputKind: 'prompt', prompt: prompt.trim() });
+  }, [createSourceAndMap, prompt]);
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleGenerate();
+  const handlePasteGenerate = useCallback(() => {
+    if (!pasteText.trim()) {
+      setError('Paste the long response or document you want to compress.');
+      return;
     }
-  };
+    createSourceAndMap({ inputKind: 'text', text: pasteText.trim() });
+  }, [createSourceAndMap, pasteText]);
 
-  // Close canvas overlay
-  const handleCloseCanvas = () => {
+  const handlePdfGenerate = useCallback(
+    async (file: File | null) => {
+      if (!file) {
+        setError('Choose a PDF file first.');
+        return;
+      }
+      await createSourceAndMap({ inputKind: 'pdf', file });
+    },
+    [createSourceAndMap]
+  );
+
+  const handleCloseCanvas = useCallback(() => {
     setIsCanvasOpen(false);
     setMenuState(null);
     setSelectedNodeId(null);
     setEditingNodeId(null);
-  };
+    setSaveStatus('idle');
+  }, [setEditingNodeId, setSelectedNodeId]);
 
-  // Handle node click
-  const handleNodeClick = useCallback((node: MindmapNode, position: { x: number; y: number }) => {
-    setSelectedNodeId(node.id);
-    setMenuState({ node, position });
-  }, [setSelectedNodeId, setMenuState]);
-
-  // Close context menu
-  const handleCloseMenu = () => {
-    setMenuState(null);
-    setSelectedNodeId(null);
-  };
-
-  // Menu action handlers
-  const handleColorChange = (color: string) => {
-    if (menuState) {
-      setNodeColor(menuState.node.id, color);
-      handleCloseMenu();
-    }
-  };
-
-  const handleAddBranch = () => {
-    if (menuState) {
-      const newNode = addChild(menuState.node.id, 'New Branch');
-      if (newNode) {
-        setEditingNodeId(newNode.id);
-      }
-      handleCloseMenu();
-    }
-  };
-
-  const handleAddNotes = () => {
-    if (menuState) {
-      setNotesModalNode(menuState.node);
-      handleCloseMenu();
-    }
-  };
-
-  // Open AI Expand modal (called from context menu)
-  const handleOpenAIExpand = () => {
-    if (menuState) {
-      setAiExpandModalState({
-        node: menuState.node,
-        position: menuState.position,
-      });
-      handleCloseMenu();
-    }
-  };
-
-  // Close AI Expand modal
-  const handleCloseAIExpandModal = () => {
-    setAiExpandModalState(null);
-  };
-
-  // Helper to get sibling titles for a node
-  const getSiblingTitles = useCallback((nodeId: string): string[] => {
-    if (!root) return [];
-
-    // Find parent of this node
-    const findParent = (node: MindmapNode, targetId: string): MindmapNode | null => {
-      for (const child of node.children) {
-        if (child.id === targetId) return node;
-        const found = findParent(child, targetId);
-        if (found) return found;
-      }
-      return null;
-    };
-
-    const parent = root.id === nodeId ? null : findParent(root, nodeId);
-    if (!parent) return [];
-
-    return parent.children
-      .filter(child => child.id !== nodeId)
-      .map(child => child.title);
-  }, [root]);
-
-  // Handle AI Expand with mode and custom instruction
-  const handleAIExpand = async (mode: ExpansionMode, customInstruction: string) => {
-    if (!aiExpandModalState || !apiKey.trim()) return;
-
-    const nodeId = aiExpandModalState.node.id;
-    const nodeTopic = aiExpandModalState.node.title;
-    handleCloseAIExpandModal();
-    setExpandingNodeId(nodeId);
-
-    try {
-      // IPC Call
-      const result = await window.api.expandNode({
-        topic: nodeTopic,
-        context: getNodePath(nodeId),
-        apiKey: apiKey.trim(),
-        model,
-        mode,
-        rootTopic: root?.title || '',
-        siblings: getSiblingTitles(nodeId),
-        customInstruction,
-      });
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to expand node');
-      }
-
-      // Smart auto-collapse: collapse siblings when expanding
-      collapseSiblings(nodeId);
-
-      // Parse children if not returned directly (IPC handler returns markdown, parsing logic usually in frontend unless moved)
-      // Wait, api/generate/expand/route.ts did parsing on server.
-      // My IPC handler (src/main/ipc.ts) returns markdown. I need to parse it here?
-      // Wait, let's check ipc.ts. It returned { success: true, markdown, mode }.
-      // The original route DID parse it: `const children = parseExpandedContent(markdown, 1);`
-      // I missed copying `parseExpandedContent` to main/ipc.ts or I should do it here.
-      // Since `parseMarkdownToTree` is in `@/lib/parseMarkdown`, I can use that or similar logic here.
-      // Actually `parseExpandedContent` was a specific helper in the route file.
-      // I should implement `parseExpandedContent` here or in `lib/parseMarkdown`.
-
-      // I will assume I need to parse it here for now.
-      const children = parseExpandedContent(result.markdown, 1);
-
-      expandNode(nodeId, children);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to expand node');
-    } finally {
-      setExpandingNodeId(null);
-    }
-  };
-
-  // Toggle collapse handler
-  const handleToggleCollapse = useCallback((nodeId: string) => {
-    toggleCollapse(nodeId);
-  }, [toggleCollapse]);
-
-  // Focus on branch (double-click)
-  const handleNodeDoubleClick = useCallback((nodeId: string) => {
-    if (focusedNodeId === nodeId) {
-      setFocusedNodeId(null);
-    } else {
-      setFocusedNodeId(nodeId);
-    }
-  }, [focusedNodeId, setFocusedNodeId]);
-
-  const handleEditNode = () => {
-    if (menuState) {
-      setEditingNodeId(menuState.node.id);
-      handleCloseMenu();
-    }
-  };
-
-  const handleRemoveStyles = () => {
-    if (menuState) {
-      resetNodeStyle(menuState.node.id);
-      handleCloseMenu();
-    }
-  };
-
-  const handleDeleteNode = () => {
-    if (menuState) {
-      const descendantCount = getDescendantCount(menuState.node.id);
-      if (descendantCount > 0) {
-        setDeleteConfirmNode(menuState.node);
-      } else {
-        deleteNode(menuState.node.id);
-      }
-      handleCloseMenu();
-    }
-  };
-
-  // Notes modal handlers
-  const handleSaveNotes = (notes: string) => {
-    if (notesModalNode) {
-      setNodeNotes(notesModalNode.id, notes);
-    }
-  };
-
-  // Delete confirm handlers
-  const handleConfirmDelete = () => {
-    if (deleteConfirmNode) {
-      deleteNode(deleteConfirmNode.id);
-      setDeleteConfirmNode(null);
-    }
-  };
-
-  // Handle node title change from inline edit
-  const handleNodeTitleChange = useCallback((nodeId: string, newTitle: string) => {
-    updateNode(nodeId, { title: newTitle });
-  }, [updateNode]);
-
-  // Handle edit complete
-  const handleEditComplete = useCallback(() => {
-    setEditingNodeId(null);
-  }, [setEditingNodeId]);
-
-  // Export handler
-  const handleExport = () => {
-    window.dispatchEvent(new CustomEvent('export-mindmap'));
-  };
-
-  // Keyboard shortcuts when canvas is open and a node is selected
-  useEffect(() => {
-    if (!isCanvasOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't handle shortcuts if we're in an input/textarea or editing
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || editingNodeId) {
+  const handleNodeClick = useCallback(
+    (node: MindmapNode, position: { x: number; y: number }) => {
+      if (selectionMode) {
+        togglePathSelection(node.id);
         return;
       }
+      setSelectedNodeId(node.id);
+      setMenuState({ node, position });
+    },
+    [selectionMode, setSelectedNodeId, togglePathSelection]
+  );
 
-      // Only handle shortcuts when we have a selected node (from menu state)
-      if (!menuState?.node) return;
+  const handleCloseMenu = useCallback(() => {
+    setMenuState(null);
+    setSelectedNodeId(null);
+  }, [setSelectedNodeId]);
 
-      switch (e.key.toLowerCase()) {
-        case 'e':
-          e.preventDefault();
-          handleEditNode();
-          break;
-        case 'a':
-          e.preventDefault();
-          handleAddBranch();
-          break;
-        case 'x':
-          e.preventDefault();
-          handleOpenAIExpand();
-          break;
-        case 'delete':
-        case 'backspace':
-          if (root?.id !== menuState.node.id) {
-            e.preventDefault();
-            handleDeleteNode();
-          }
-          break;
-        case 'escape':
-          e.preventDefault();
-          handleCloseMenu();
-          break;
+  const getSiblingTitles = useCallback(
+    (nodeId: string): string[] => {
+      if (!root) return [];
+
+      const findParent = (node: MindmapNode, targetId: string): MindmapNode | null => {
+        for (const child of node.children) {
+          if (child.id === targetId) return node;
+          const found = findParent(child, targetId);
+          if (found) return found;
+        }
+        return null;
+      };
+
+      const parent = root.id === nodeId ? null : findParent(root, nodeId);
+      if (!parent) return [];
+
+      return parent.children.filter((child) => child.id !== nodeId).map((child) => child.title);
+    },
+    [root]
+  );
+
+  const handleAIExpand = useCallback(
+    async (customInstruction: string, lens: ThinkingLens) => {
+      if (!aiExpandModalState || !apiKey.trim()) return;
+
+      const nodeId = aiExpandModalState.node.id;
+      const nodeTopic = aiExpandModalState.node.title;
+      setSelectedLens(lens);
+      setAiExpandModalState(null);
+      setExpandingNodeId(nodeId);
+
+      try {
+        const result = await window.api.map.expandNodeWithLens({
+          topic: nodeTopic,
+          context: getNodePath(nodeId),
+          apiKey: apiKey.trim(),
+          model,
+          rootTopic: root?.title || '',
+          siblings: getSiblingTitles(nodeId),
+          customInstruction,
+          lens,
+          sourceKind: currentSource?.inputKind || 'prompt',
+        });
+
+        if (!result?.success) {
+          throw new Error(result?.error || 'Failed to expand node');
+        }
+
+        collapseSiblings(nodeId);
+        const children = parseExpandedContent(result.markdown, 1);
+        expandNode(nodeId, children);
+        setSuccessMessage(`Expanded branch with ${lens.replace('_', ' ')}.`);
+      } catch (err) {
+        void logEvent({
+          level: 'error',
+          scope: 'renderer.expand',
+          message: 'Failed to expand node',
+          meta: { lens, nodeId, error: err instanceof Error ? err.message : String(err) },
+        });
+        setError(err instanceof Error ? err.message : 'Failed to expand node');
+      } finally {
+        setExpandingNodeId(null);
       }
-    };
+    },
+    [aiExpandModalState, apiKey, collapseSiblings, currentSource?.inputKind, expandNode, getNodePath, getSiblingTitles, model, root?.title, setExpandingNodeId]
+  );
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isCanvasOpen, menuState, editingNodeId, root]);
+  const handleGenerateBranchBrief = useCallback(async () => {
+    if (!currentMapId) return;
+    const result = await window.api.artifact.createBranchBrief({
+      compressionMapId: currentMapId,
+      selectedNodeIds,
+      selectedPathOrder,
+      apiKey: apiKey.trim() || undefined,
+      model,
+    });
+
+    if (!result?.success) {
+      void logEvent({
+        level: 'error',
+        scope: 'renderer.artifact',
+        message: 'Failed to generate branch brief',
+        meta: { currentMapId, error: result?.error || 'Unknown error' },
+      });
+      setError(result?.error || 'Failed to generate branch brief');
+      return;
+    }
+
+    setCurrentArtifacts((prev) => [result.artifact, ...prev.filter((item) => item.id !== result.artifact.id)]);
+    setSuccessMessage('Branch brief generated.');
+  }, [apiKey, currentMapId, model, selectedNodeIds, selectedPathOrder]);
+
+  const handleDispatchToCodex = useCallback(
+    async (branchBriefId: string) => {
+      if (!currentMapId) return;
+      const result = await window.api.handoff.dispatchToCodex({
+        branchBriefId,
+        compressionMapId: currentMapId,
+      });
+      if (!result?.success) {
+        void logEvent({
+          level: 'error',
+          scope: 'renderer.handoff',
+          message: 'Failed to dispatch branch brief to Codex',
+          meta: { currentMapId, branchBriefId, error: result?.error || 'Unknown error' },
+        });
+        setError(result?.error || 'Failed to dispatch to Codex');
+        return;
+      }
+      setCurrentArtifacts((prev) => [result.artifact, ...prev.filter((item) => item.id !== result.artifact.id)]);
+      setSuccessMessage('Copied Codex handoff to clipboard.');
+    },
+    [currentMapId]
+  );
+
+  const selectedPathNodes = useMemo(
+    () => selectedPathOrder.map((id) => getNode(id)).filter(Boolean) as MindmapNode[],
+    [getNode, selectedPathOrder]
+  );
+
+  const branchBriefs = useMemo(
+    () => currentArtifacts.filter((item): item is BranchBriefArtifact => item.kind === 'branch_brief'),
+    [currentArtifacts]
+  );
+  const handoffs = useMemo(
+    () => currentArtifacts.filter((item): item is ExecutionHandoffArtifact => item.kind === 'execution_handoff'),
+    [currentArtifacts]
+  );
+  const latestBrief = branchBriefs[0] || null;
+
+  const handleExport = useCallback(() => {
+    window.dispatchEvent(new CustomEvent('export-mindmap'));
+  }, []);
 
   return (
     <div className={styles.container}>
-      <div className={styles.ambientGlow} />
-
-      <div className={styles.floatingNodes}>
-        <div className={styles.floatingNode} style={{ top: '12%', left: '6%' }}>Brainstorm</div>
-        <div className={styles.floatingNode} style={{ top: '20%', right: '10%' }}>Explore</div>
-        <div className={styles.floatingNode} style={{ top: '45%', left: '3%' }}>Connect</div>
-        <div className={styles.floatingNode} style={{ bottom: '25%', right: '5%' }}>Visualize</div>
-        <div className={styles.floatingNode} style={{ bottom: '15%', left: '12%' }}>Discover</div>
-        <div className={styles.nodeOrbit} style={{ top: '5%', left: '50%', transform: 'translateX(-50%)' }} />
-        <div className={styles.nodeOrbit} style={{ bottom: '10%', right: '10%', width: '200px', height: '200px' }} />
-      </div>
-
-      <header className={styles.header}>
-        <div className={styles.logo}>
-          <div className={styles.logoIcon}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2.5">
-              <circle cx="12" cy="12" r="3" />
-              <line x1="12" y1="2" x2="12" y2="6" />
-              <line x1="12" y1="18" x2="12" y2="22" />
-              <line x1="2" y1="12" x2="6" y2="12" />
-              <line x1="18" y1="12" x2="22" y2="12" />
-            </svg>
-          </div>
-          <span>Flows</span>
+      <header className={styles.topBar}>
+        <div>
+          <div className={styles.brandEyebrow}>Flows Blueprint 2.0</div>
+          <div className={styles.brandTitle}>Compress. Select. Dispatch.</div>
         </div>
-
-        <nav className={styles.headerNav}>
-          <span
-            className={`${styles.navLink} ${activeTab === 'generate' ? styles.navLinkActive : ''}`}
-            onClick={() => setActiveTab('generate')}
-          >
-            Generate
-          </span>
-          <span
-            className={`${styles.navLink} ${activeTab === 'history' ? styles.navLinkActive : ''}`}
-            onClick={() => setActiveTab('history')}
-          >
-            History
-          </span>
-        </nav>
-
-        <div className={styles.headerActions}>
-          <button
-            className={styles.settingsButton}
-            onClick={() => setIsSettingsOpen(true)}
-            aria-label="Open settings"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
+        <nav className={styles.nav}>
+          <button className={`${styles.navLink} ${activeTab === 'generate' ? styles.navLinkActive : ''}`} onClick={() => setActiveTab('generate')}>
+            Workspace
           </button>
-        </div>
+          <button className={`${styles.navLink} ${activeTab === 'history' ? styles.navLinkActive : ''}`} onClick={() => setActiveTab('history')}>
+            Map History
+          </button>
+          <button
+            className={styles.navLink}
+            onClick={() => {
+              setIsDiagnosticsOpen(true);
+              void refreshDiagnostics();
+            }}
+          >
+            Diagnostics
+          </button>
+          <button className={styles.settingsButton} onClick={() => setIsSettingsOpen(true)}>
+            Settings
+          </button>
+        </nav>
       </header>
 
       {activeTab === 'generate' && (
         <section className={styles.heroSection}>
-          <h1 className={styles.welcomeText}>
-            Hey there, <span className={styles.welcomeName}>explorer</span> ✨
-          </h1>
-
-          <p className={styles.heroSubtitle}>
-            Yesterday we mapped the cosmos of machine learning. Last week, we explored the depths of sustainable energy.
-            What rabbit hole are we diving into today?
-          </p>
-
-          <div className={styles.inputArea}>
-            <div className={styles.inputWrapper}>
-              <input
-                type="text"
-                placeholder="Type any topic and watch the magic unfold..."
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                onKeyPress={handleKeyPress}
-                className={styles.promptInput}
-                disabled={isLoading}
-              />
-              <button
-                onClick={handleGenerate}
-                disabled={isLoading || !prompt.trim()}
-                className={styles.generateButton}
-              >
-                {isLoading ? (
-                  <>
-                    <span className={styles.spinner} />
-                    Creating...
-                  </>
-                ) : (
-                  "Let's Go"
-                )}
-              </button>
+          <div className={styles.heroCard}>
+            <div className={styles.heroCopy}>
+              <p className={styles.eyebrow}>Turn dense input into a chosen path</p>
+              <h1 className={styles.heroHeading}>Flows is your compression surface for long AI output and dense documents.</h1>
+              <p className={styles.heroBody}>
+                Ingest a prompt, a pasted answer, or a PDF. Compress it into a navigable branch map. Pressure-test one path and send it to Codex.
+              </p>
             </div>
 
-            {error && (
-              <div className={styles.error}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-                {error}
+            <div className={styles.inputModeRow}>
+              {(['ask', 'paste', 'pdf'] as InputView[]).map((view) => (
+                <button
+                  key={view}
+                  className={`${styles.inputModeButton} ${inputView === view ? styles.inputModeButtonActive : ''}`}
+                  onClick={() => {
+                    setInputView(view);
+                    setError(null);
+                  }}
+                >
+                  {view === 'ask' ? 'Ask' : view === 'paste' ? 'Paste' : 'Drop PDF'}
+                </button>
+              ))}
+            </div>
+
+            {inputView === 'ask' && (
+              <div className={styles.sourcePanel}>
+                <input
+                  type="text"
+                  placeholder="What do you want to compress into a map?"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  className={styles.promptInput}
+                  disabled={isLoading}
+                />
+                <button onClick={handlePromptGenerate} disabled={isLoading || !prompt.trim()} className={styles.generateButton}>
+                  {isLoading ? 'Compressing…' : 'Compress Prompt'}
+                </button>
               </div>
             )}
-          </div>
 
-          <div className={styles.buttonGroup}>
-            <button className={styles.secondaryButton} onClick={() => setIsSettingsOpen(true)}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
-              </svg>
-              Settings
-            </button>
+            {inputView === 'paste' && (
+              <div className={styles.sourcePanel}>
+                <textarea
+                  className={styles.pasteInput}
+                  placeholder="Paste the long LLM response, meeting notes, spec, or research dump you want to compress."
+                  value={pasteText}
+                  onChange={(e) => setPasteText(e.target.value)}
+                  disabled={isLoading}
+                />
+                <button onClick={handlePasteGenerate} disabled={isLoading || !pasteText.trim()} className={styles.generateButton}>
+                  {isLoading ? 'Compressing…' : 'Compress Text'}
+                </button>
+              </div>
+            )}
+
+            {inputView === 'pdf' && (
+              <label className={styles.uploadPanel}>
+                <span className={styles.uploadTitle}>Choose a PDF and Flows will extract its text and compress it into branches.</span>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(e) => handlePdfGenerate(e.target.files?.[0] || null)}
+                  disabled={isLoading}
+                  className={styles.hiddenFileInput}
+                />
+                <span className={styles.uploadButton}>{isLoading ? 'Reading PDF…' : 'Choose PDF'}</span>
+              </label>
+            )}
+
+            {(error || successMessage) && (
+              <div className={error ? styles.error : styles.successBanner}>{error || successMessage}</div>
+            )}
           </div>
         </section>
       )}
 
       {activeTab === 'history' && (
         <section className={styles.historySection}>
-          <div className={styles.historyEmpty}>
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#444" strokeWidth="1.5" style={{ marginBottom: '20px' }}>
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-            <h3>Your journey begins here</h3>
-            <p>
-              Once you start creating mindmaps, they'll appear here like chapters in your exploration diary.
-              Each map tells a story of curiosity and discovery.
-            </p>
-            <button
-              className={styles.secondaryButton}
-              onClick={() => setActiveTab('generate')}
-              style={{ marginTop: '24px' }}
-            >
-              Create your first mindmap →
+          <div className={styles.historyHeader}>
+            <div>
+              <h2 className={styles.historyTitle}>Compression Maps</h2>
+              <p className={styles.historySubtitle}>Every source, selected path, brief, and handoff stays linked.</p>
+            </div>
+            <button className={styles.secondaryButton} onClick={refreshHistory} disabled={isHistoryLoading}>
+              {isHistoryLoading ? 'Refreshing…' : 'Refresh'}
             </button>
           </div>
+
+          {historyError && <div className={styles.error}>{historyError}</div>}
+
+          {isHistoryLoading ? (
+            <div className={styles.historyLoading}>Loading…</div>
+          ) : memoryDocuments.length === 0 ? (
+            <div className={styles.historyEmpty}>Create your first compression map and it will appear here.</div>
+          ) : (
+            <div className={styles.historyList}>
+              {memoryDocuments.map((doc) => (
+                <div
+                  key={doc.id}
+                  className={`${styles.historyCard} ${currentMapId === doc.id ? styles.historyCardActive : ''}`}
+                  onClick={() => handleOpenMemoryDocument(doc.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleOpenMemoryDocument(doc.id);
+                    }
+                  }}
+                >
+                  <div className={styles.historyCardMain}>
+                    <div className={styles.historyCardTitle}>{doc.title}</div>
+                    <div className={styles.historyCardMeta}>Updated {new Date(doc.updatedAt).toLocaleString()}</div>
+                  </div>
+                  <div className={styles.historyCardActions}>
+                    <button className={styles.historyActionButton} onClick={(e) => { e.stopPropagation(); handleOpenMemoryDocument(doc.id); }}>
+                      Open
+                    </button>
+                    <button className={`${styles.historyActionButton} ${styles.historyActionDanger}`} onClick={(e) => { e.stopPropagation(); handleDeleteMemoryDocument(doc.id); }}>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       )}
 
@@ -556,30 +799,140 @@ export default function App() {
         onModelChange={setModel}
       />
 
+      <DiagnosticsPanel
+        isOpen={isDiagnosticsOpen}
+        onClose={() => setIsDiagnosticsOpen(false)}
+        entries={diagnosticEntries}
+        logPath={logPath}
+        llmEntries={llmEntries}
+        llmLogPath={llmLogPath}
+        isLoading={isDiagnosticsLoading}
+        onRefresh={refreshDiagnostics}
+      />
+
       <CanvasOverlay
         isOpen={isCanvasOpen}
         onClose={handleCloseCanvas}
-        title={root?.title || 'Mindmap'}
+        title={root?.title || currentSource?.title || 'Compression Map'}
         onExport={handleExport}
+        saveStatus={currentMapId ? saveStatus : 'idle'}
       >
-        {root && (
-          <Suspense fallback={<div className={styles.loadingCanvas}>Loading visualization...</div>}>
-            <MindmapCanvas
-              data={root}
-              viewKey={viewKey}
-              selectedNodeId={selectedNodeId}
-              editingNodeId={editingNodeId}
-              expandingNodeId={expandingNodeId}
-              focusedNodeId={focusedNodeId}
-              onNodeClick={handleNodeClick}
-              onNodeTitleChange={handleNodeTitleChange}
-              onEditComplete={handleEditComplete}
-              onToggleCollapse={handleToggleCollapse}
-              onNodeDoubleClick={handleNodeDoubleClick}
-              isNodeInFocus={isNodeInFocus}
-            />
-          </Suspense>
-        )}
+        <div className={styles.overlayWorkspace}>
+          <div className={styles.overlayCanvasPane}>
+            {root && (
+              <Suspense fallback={<div className={styles.loadingCanvas}>Loading visualization...</div>}>
+                <MindmapCanvas
+                  data={root}
+                  viewKey={viewKey}
+                  selectedNodeId={selectedNodeId}
+                  selectedNodeIds={selectedNodeIds}
+                  selectionMode={selectionMode}
+                  editingNodeId={editingNodeId}
+                  expandingNodeId={expandingNodeId}
+                  focusedNodeId={focusedNodeId}
+                  onNodeClick={handleNodeClick}
+                  onNodeTitleChange={(nodeId, newTitle) => updateNode(nodeId, { title: newTitle })}
+                  onEditComplete={() => setEditingNodeId(null)}
+                  onToggleCollapse={toggleCollapse}
+                  onNodeDoubleClick={(nodeId) => setFocusedNodeId(focusedNodeId === nodeId ? null : nodeId)}
+                  isNodeInFocus={isNodeInFocus}
+                />
+              </Suspense>
+            )}
+          </div>
+
+          <aside className={styles.overlayRail}>
+            <div className={styles.railSection}>
+              <div className={styles.railHeading}>Source</div>
+              <div className={styles.railCard}>
+                <div className={styles.railMetaRow}>
+                  <span className={styles.metaPill}>{currentSource?.inputKind || 'prompt'}</span>
+                  <span className={styles.metaPill}>{selectedLens.replace('_', ' ')}</span>
+                </div>
+                <div className={styles.railTitle}>{currentSource?.title || root?.title || 'Untitled source'}</div>
+                <p className={styles.railBody}>
+                  {currentSource?.sourceText?.slice(0, 220) || currentSource?.prompt || 'Use this map to compress a source, challenge a branch, and dispatch the path that matters.'}
+                </p>
+              </div>
+            </div>
+
+            <div className={styles.railSection}>
+              <div className={styles.railHeading}>Selected Path</div>
+              <div className={styles.railActions}>
+                <button className={styles.secondaryButton} onClick={() => setSelectionMode((value) => !value)}>
+                  {selectionMode ? 'Exit Selection' : 'Select Path'}
+                </button>
+                <button className={styles.secondaryButton} onClick={clearPathSelection} disabled={selectedPathOrder.length === 0}>
+                  Clear
+                </button>
+              </div>
+              <div className={styles.pathList}>
+                {selectedPathNodes.length === 0 ? (
+                  <div className={styles.emptyHint}>Toggle selection mode and click nodes to build a branch path.</div>
+                ) : (
+                  selectedPathNodes.map((node, index) => (
+                    <div key={node.id} className={styles.pathItem}>
+                      <div>
+                        <div className={styles.pathIndex}>Step {index + 1}</div>
+                        <div className={styles.pathTitle}>{node.title}</div>
+                      </div>
+                      <div className={styles.pathControls}>
+                        <button className={styles.miniButton} onClick={() => movePathNode(node.id, 'up')} disabled={index === 0}>↑</button>
+                        <button className={styles.miniButton} onClick={() => movePathNode(node.id, 'down')} disabled={index === selectedPathNodes.length - 1}>↓</button>
+                        <button className={styles.miniButton} onClick={() => togglePathSelection(node.id)}>×</button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className={styles.railActions}>
+                <button className={styles.primaryAction} onClick={handleGenerateBranchBrief} disabled={selectedPathOrder.length === 0}>
+                  Generate Brief
+                </button>
+                <button
+                  className={styles.secondaryButton}
+                  onClick={() => latestBrief && handleDispatchToCodex(latestBrief.id)}
+                  disabled={!latestBrief}
+                >
+                  Send to Codex
+                </button>
+              </div>
+            </div>
+
+            <div className={styles.railSection}>
+              <div className={styles.railHeading}>Artifacts</div>
+              {latestBrief ? (
+                <div className={styles.railCard}>
+                  <div className={styles.railTitle}>{latestBrief.brief.title}</div>
+                  <p className={styles.railBody}>{latestBrief.brief.summary}</p>
+                  <div className={styles.artifactList}>
+                    {latestBrief.brief.keyPoints.slice(0, 4).map((point) => (
+                      <span key={point} className={styles.metaPill}>{point}</span>
+                    ))}
+                  </div>
+                  <div className={styles.railActions}>
+                    <button className={styles.primaryAction} onClick={() => handleDispatchToCodex(latestBrief.id)}>
+                      Send to Codex
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className={styles.emptyHint}>Generate a branch brief to capture the chosen path.</div>
+              )}
+
+              {handoffs.length > 0 && (
+                <div className={styles.handoffList}>
+                  {handoffs.map((handoff) => (
+                    <div key={handoff.id} className={styles.handoffItem}>
+                      <div className={styles.pathTitle}>{handoff.payload.title}</div>
+                      <div className={styles.historyCardMeta}>Codex • {handoff.status}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </aside>
+        </div>
       </CanvasOverlay>
 
       {menuState && isCanvasOpen && (
@@ -588,13 +941,28 @@ export default function App() {
           position={menuState.position}
           isRoot={root?.id === menuState.node.id}
           onClose={handleCloseMenu}
-          onColorChange={handleColorChange}
-          onAddBranch={handleAddBranch}
-          onAddNotes={handleAddNotes}
-          onOpenAIExpand={handleOpenAIExpand}
-          onEditNode={handleEditNode}
-          onRemoveStyles={handleRemoveStyles}
-          onDeleteNode={handleDeleteNode}
+          onColorChange={(color) => { setNodeColor(menuState.node.id, color); handleCloseMenu(); }}
+          onAddBranch={() => {
+            const newNode = addChild(menuState.node.id, 'New Branch');
+            if (newNode) setEditingNodeId(newNode.id);
+            handleCloseMenu();
+          }}
+          onAddNotes={() => { setNotesModalNode(menuState.node); handleCloseMenu(); }}
+          onOpenAIExpand={() => {
+            setAiExpandModalState({ node: menuState.node, position: menuState.position });
+            handleCloseMenu();
+          }}
+          onEditNode={() => { setEditingNodeId(menuState.node.id); handleCloseMenu(); }}
+          onRemoveStyles={() => { resetNodeStyle(menuState.node.id); handleCloseMenu(); }}
+          onDeleteNode={() => {
+            const descendantCount = getDescendantCount(menuState.node.id);
+            if (descendantCount > 0) {
+              setDeleteConfirmNode(menuState.node);
+            } else {
+              deleteNode(menuState.node.id);
+            }
+            handleCloseMenu();
+          }}
         />
       )}
 
@@ -602,16 +970,18 @@ export default function App() {
         <AIExpandBar
           node={aiExpandModalState.node}
           position={aiExpandModalState.position}
-          onClose={handleCloseAIExpandModal}
+          onClose={() => setAiExpandModalState(null)}
           onExpand={handleAIExpand}
           isExpanding={expandingNodeId === aiExpandModalState.node.id}
+          selectedLens={selectedLens}
+          onLensChange={setSelectedLens}
         />
       )}
 
       {notesModalNode && (
         <NotesModal
           node={notesModalNode}
-          onSave={handleSaveNotes}
+          onSave={(notes) => setNodeNotes(notesModalNode.id, notes)}
           onClose={() => setNotesModalNode(null)}
         />
       )}
@@ -620,7 +990,10 @@ export default function App() {
         <DeleteConfirmDialog
           node={deleteConfirmNode}
           descendantCount={getDescendantCount(deleteConfirmNode.id)}
-          onConfirm={handleConfirmDelete}
+          onConfirm={() => {
+            deleteNode(deleteConfirmNode.id);
+            setDeleteConfirmNode(null);
+          }}
           onCancel={() => setDeleteConfirmNode(null)}
         />
       )}
@@ -628,9 +1001,8 @@ export default function App() {
   );
 }
 
-// Add this helper function at the end of the file or import it
 function parseExpandedContent(markdown: string, parentLevel: number): MindmapNode[] {
-  const lines = markdown.split('\n').filter(line => line.trim());
+  const lines = markdown.split('\n').filter((line) => line.trim());
   const children: MindmapNode[] = [];
   let currentNode: MindmapNode | null = null;
   let nodeId = Date.now();
@@ -643,7 +1015,6 @@ function parseExpandedContent(markdown: string, parentLevel: number): MindmapNod
     const title = match[2].trim();
 
     if (hashes === 3) {
-      // Sub-topic - direct child
       currentNode = {
         id: `expand-${nodeId++}`,
         title,
@@ -652,7 +1023,6 @@ function parseExpandedContent(markdown: string, parentLevel: number): MindmapNod
       };
       children.push(currentNode);
     } else if (hashes === 4 && currentNode) {
-      // Detail - grandchild
       currentNode.children.push({
         id: `expand-${nodeId++}`,
         title,

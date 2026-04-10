@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Constellations - The Ecosystem</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --text-main: #1a1a1a;
+            --text-light: #666;
+            --accent: #FF9A9E;
+            --bg-gradient: linear-gradient(120deg, #fccb90 0%, #d57eeb 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            color: var(--text-main);
+            background: #fff;
+            overflow-x: hidden;
+        }
+
+        /* Full Background Mesh */
+        .mesh-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-image: var(--bg-gradient);
+            opacity: 0.15;
+            z-index: -1;
+            filter: blur(80px);
+        }
+
+        header {
+            padding: 2rem 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            font-size: 1.2rem;
+            letter-spacing: -0.5px;
+            border: 1px solid #000;
+            padding: 0.5rem 1rem;
+            background: #fff;
+        }
+
+        nav a {
+            margin-left: 2rem;
+            text-decoration: none;
+            color: var(--text-main);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        main {
+            padding: 4rem 5%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+            min-height: 80vh;
+        }
+
+        .content-col {
+            max-width: 600px;
+        }
+
+        .label {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--text-light);
+            margin-bottom: 2rem;
+            display: block;
+        }
+
+        .label::before {
+            content: '●';
+            color: var(--accent);
+            margin-right: 10px;
+        }
+
+        h1 {
+            font-size: 4.5rem;
+            line-height: 1.1;
+            letter-spacing: -2px;
+            margin-bottom: 2rem;
+            font-weight: 500;
+        }
+
+        p {
+            font-size: 1.2rem;
+            color: var(--text-light);
+            line-height: 1.6;
+            margin-bottom: 3rem;
+            max-width: 450px;
+        }
+
+        .btn {
+            background: #000;
+            color: #fff;
+            padding: 1rem 2.5rem;
+            text-decoration: none;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.9rem;
+            transition: transform 0.2s;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+        }
+
+        .visual-col {
+            position: relative;
+            height: 600px;
+            background: rgba(255, 255, 255, 0.4);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Ethereal Connected Nodes SVG */
+        .svg-container {
+            width: 80%;
+            height: 80%;
+            position: relative;
+        }
+
+        .node-label {
+            position: absolute;
+            background: #000;
+            color: #fff;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            padding: 0.5rem 1rem;
+            transform: translate(-50%, -150%);
+            white-space: nowrap;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            margin-top: 4rem;
+            border-top: 1px solid rgba(0, 0, 0, 0.1);
+            padding-top: 2rem;
+        }
+
+        .stat h3 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat span {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+
+        @media (max-width: 900px) {
+            main {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+
+            .content-col {
+                margin: 0 auto;
+            }
+
+            .visual-col {
+                display: none;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="mesh-bg"></div>
+
+    <header>
+        <div class="logo">Constellations.my</div>
+        <nav>
+            <a href="#">Capabilities</a>
+            <a href="#">Ecosystem</a>
+            <a href="#">Login</a>
+        </nav>
+    </header>
+
+    <main>
+        <div class="content-col">
+            <span class="label">v2.0 System Ready</span>
+            <h1>One Platform.<br>Infinite Flows.</h1>
+            <p>From camera systems to server room protection, Constellations delivers a complete mental ecosystem for
+                your ideas.</p>
+
+            <a href="#" class="btn">Get the Security</a>
+
+            <div class="stats-grid">
+                <div class="stat">
+                    <h3>1,200+</h3>
+                    <span>Systems Installed</span>
+                </div>
+                <div class="stat">
+                    <h3>300+</h3>
+                    <span>Business Clients</span>
+                </div>
+                <div class="stat">
+                    <h3>50+</h3>
+                    <span>Govt Projects</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="visual-col">
+            <svg width="100%" height="100%" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#fccb90;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#d57eeb;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+
+                <!-- Center Node -->
+                <circle cx="200" cy="200" r="10" fill="black" />
+
+                <!-- Satellite Nodes -->
+                <circle cx="100" cy="100" r="5" stroke="black" stroke-width="1" fill="white" />
+                <line x1="105" y1="105" x2="195" y2="195" stroke="black" stroke-width="0.5" />
+
+                <circle cx="300" cy="100" r="5" stroke="black" stroke-width="1" fill="white" />
+                <line x1="295" y1="105" x2="205" y2="195" stroke="black" stroke-width="0.5" />
+
+                <circle cx="300" cy="300" r="5" stroke="black" stroke-width="1" fill="white" />
+                <line x1="295" y1="295" x2="205" y2="205" stroke="black" stroke-width="0.5" />
+
+                <circle cx="100" cy="300" r="5" stroke="black" stroke-width="1" fill="white" />
+                <line x1="105" y1="295" x2="195" y2="205" stroke="black" stroke-width="0.5" />
+
+                <!-- Orbit Rings -->
+                <circle cx="200" cy="200" r="150" stroke="url(#grad1)" stroke-width="1" fill="none" opacity="0.5"
+                    stroke-dasharray="4 4" />
+                <circle cx="200" cy="200" r="100" stroke="#000" stroke-width="0.5" fill="none" opacity="0.1" />
+            </svg>
+            <div class="node-label" style="top: 50%; left: 50%;">Designed for Environment</div>
+        </div>
+    </main>
+</body>
+
+</html>

@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maps — Where Ideas Become Constellations</title>
+    <meta name="description"
+        content="The AI-native canvas for visual thinking. Transform chaotic thoughts into structured execution.">
+
+    <!-- Premium Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Sora:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-deep: #0a0118;
+            --bg-surface: #120826;
+            --text-primary: #fafafa;
+            --text-secondary: rgba(255, 255, 255, 0.7);
+            --text-muted: rgba(255, 255, 255, 0.5);
+            --aurora-1: #7c3aed;
+            --aurora-2: #ec4899;
+            --aurora-3: #06b6d4;
+            --aurora-4: #10b981;
+            --glow-purple: rgba(139, 92, 246, 0.4);
+            --glow-pink: rgba(236, 72, 153, 0.3);
+            --glow-cyan: rgba(6, 182, 212, 0.3);
+            --font-display: 'Sora', sans-serif;
+            --font-handwritten: 'Caveat', cursive;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            font-family: var(--font-display);
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* Animated Aurora Background */
+        .aurora-canvas {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .aurora-layer {
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            top: -50%;
+            left: -50%;
+            opacity: 0.6;
+        }
+
+        .aurora-layer::before,
+        .aurora-layer::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(120px);
+            animation: aurora-drift 20s ease-in-out infinite;
+        }
+
+        .aurora-layer::before {
+            width: 50vw;
+            height: 50vw;
+            background: linear-gradient(135deg, var(--aurora-1), var(--aurora-2));
+            top: 10%;
+            left: 20%;
+            animation-delay: 0s;
+        }
+
+        .aurora-layer::after {
+            width: 40vw;
+            height: 40vw;
+            background: linear-gradient(225deg, var(--aurora-3), var(--aurora-4));
+            bottom: 20%;
+            right: 10%;
+            animation-delay: -10s;
+        }
+
+        .aurora-layer-2::before {
+            width: 35vw;
+            height: 35vw;
+            background: var(--aurora-2);
+            top: 50%;
+            right: 30%;
+            animation-delay: -5s;
+        }
+
+        .aurora-layer-2::after {
+            width: 45vw;
+            height: 45vw;
+            background: var(--aurora-1);
+            top: 20%;
+            right: -10%;
+            animation-delay: -15s;
+        }
+
+        @keyframes aurora-drift {
+
+            0%,
+            100% {
+                transform: translate(0, 0) scale(1) rotate(0deg);
+            }
+
+            25% {
+                transform: translate(5%, 10%) scale(1.1) rotate(5deg);
+            }
+
+            50% {
+                transform: translate(-5%, 5%) scale(0.95) rotate(-5deg);
+            }
+
+            75% {
+                transform: translate(10%, -5%) scale(1.05) rotate(3deg);
+            }
+        }
+
+        /* Noise Texture Overlay */
+        .noise-overlay {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 10;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        /* Glassmorphism Header */
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 1.25rem 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(20px);
+            background: rgba(10, 1, 24, 0.6);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+        }
+
+        .logo-mark {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--aurora-1), var(--aurora-2));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            box-shadow: 0 4px 20px var(--glow-purple);
+        }
+
+        .logo-text {
+            font-weight: 700;
+            font-size: 1.35rem;
+            letter-spacing: -0.03em;
+            color: var(--text-primary);
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .nav-link:hover {
+            color: var(--text-primary);
+        }
+
+        .nav-cta {
+            background: linear-gradient(135deg, var(--aurora-1), var(--aurora-2));
+            color: white;
+            padding: 0.65rem 1.4rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            box-shadow: 0 4px 24px var(--glow-purple);
+            transition: all 0.3s ease;
+        }
+
+        .nav-cta:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px var(--glow-purple);
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 8rem 5% 6rem;
+            position: relative;
+        }
+
+        /* Floating Handwritten Annotations */
+        .floating-annotation {
+            font-family: var(--font-handwritten);
+            position: absolute;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            pointer-events: none;
+            animation: gentle-float 8s ease-in-out infinite;
+        }
+
+        .annotation-1 {
+            top: 15%;
+            left: 10%;
+            transform: rotate(-12deg);
+            animation-delay: 0s;
+        }
+
+        .annotation-2 {
+            top: 25%;
+            right: 8%;
+            transform: rotate(8deg);
+            animation-delay: -2s;
+            color: var(--aurora-3);
+        }
+
+        .annotation-3 {
+            bottom: 20%;
+            left: 12%;
+            transform: rotate(-5deg);
+            animation-delay: -4s;
+        }
+
+        .annotation-4 {
+            bottom: 12%;
+            right: 15%;
+            transform: rotate(10deg);
+            animation-delay: -6s;
+            color: var(--aurora-2);
+        }
+
+        @keyframes gentle-float {
+
+            0%,
+            100% {
+                transform: translateY(0) rotate(var(--rotation, 0deg));
+            }
+
+            50% {
+                transform: translateY(-15px) rotate(calc(var(--rotation, 0deg) + 3deg));
+            }
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(139, 92, 246, 0.15);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            padding: 0.5rem 1.25rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--aurora-1);
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .hero-badge::before {
+            content: '✦';
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .hero h1 {
+            font-size: clamp(3rem, 10vw, 6.5rem);
+            font-weight: 700;
+            line-height: 1.05;
+            letter-spacing: -0.04em;
+            margin-bottom: 0.5rem;
+            max-width: 900px;
+        }
+
+        .hero-title-line {
+            display: block;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #fff 0%, var(--aurora-3) 50%, var(--aurora-2) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-subtitle {
+            font-family: var(--font-handwritten);
+            font-size: clamp(2rem, 5vw, 3.5rem);
+            color: var(--aurora-2);
+            margin-bottom: 2rem;
+            transform: rotate(-2deg);
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            max-width: 540px;
+            margin: 0 auto 3rem;
+            line-height: 1.7;
+        }
+
+        .cta-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--aurora-1), var(--aurora-2));
+            color: white;
+            padding: 1rem 2.5rem;
+            border-radius: 14px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.1rem;
+            box-shadow: 0 8px 32px var(--glow-purple);
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 48px var(--glow-purple);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: var(--text-primary);
+            padding: 1rem 2.5rem;
+            border-radius: 14px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Features Section */
+        .features {
+            padding: 6rem 5%;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .section-eyebrow {
+            font-family: var(--font-handwritten);
+            font-size: 1.5rem;
+            color: var(--aurora-3);
+            margin-bottom: 1rem;
+        }
+
+        .section-title {
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            margin-bottom: 1rem;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 2rem;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 24px;
+            padding: 2.5rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s ease;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(139, 92, 246, 0.3);
+            box-shadow: 0 20px 60px rgba(139, 92, 246, 0.1);
+        }
+
+        .feature-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(236, 72, 153, 0.2));
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .feature-card h3 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            letter-spacing: -0.02em;
+        }
+
+        .feature-card p {
+            color: var(--text-secondary);
+            line-height: 1.7;
+            font-size: 1rem;
+        }
+
+        .feature-handnote {
+            font-family: var(--font-handwritten);
+            font-size: 1.1rem;
+            color: var(--aurora-3);
+            margin-top: 1rem;
+            display: inline-block;
+        }
+
+        /* Quote Section */
+        .quote-section {
+            padding: 8rem 5%;
+            text-align: center;
+            position: relative;
+        }
+
+        .quote-section::before {
+            content: '"';
+            position: absolute;
+            top: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: var(--font-handwritten);
+            font-size: 12rem;
+            color: rgba(139, 92, 246, 0.1);
+            z-index: -1;
+        }
+
+        .quote-text {
+            font-size: clamp(2rem, 5vw, 4rem);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            max-width: 900px;
+            margin: 0 auto 2rem;
+            line-height: 1.2;
+        }
+
+        .quote-text .highlight {
+            background: linear-gradient(135deg, var(--aurora-1), var(--aurora-2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .quote-author {
+            font-family: var(--font-handwritten);
+            font-size: 1.5rem;
+            color: var(--text-muted);
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 4rem 5%;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .footer-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .footer-tagline {
+            font-family: var(--font-handwritten);
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+
+        .footer-copy {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            header {
+                padding: 1rem 5%;
+            }
+
+            .nav-link {
+                display: none;
+            }
+
+            .floating-annotation {
+                display: none;
+            }
+
+            .hero {
+                padding-top: 7rem;
+            }
+
+            .hero h1 {
+                font-size: 2.75rem;
+            }
+
+            .hero-subtitle {
+                font-size: 2rem;
+            }
+
+            .cta-group {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .btn-primary,
+            .btn-secondary {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="aurora-canvas">
+        <div class="aurora-layer"></div>
+        <div class="aurora-layer aurora-layer-2"></div>
+    </div>
+    <div class="noise-overlay"></div>
+
+    <header>
+        <a href="#" class="logo">
+            <div class="logo-mark">◎</div>
+            <span class="logo-text">Maps</span>
+        </a>
+        <div class="nav-actions">
+            <a href="#" class="nav-link">Philosophy</a>
+            <a href="#" class="nav-link">About</a>
+            <a href="#" class="nav-cta">Get Early Access</a>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <!-- Floating handwritten annotations -->
+            <span class="floating-annotation annotation-1" style="--rotation: -12deg">think visually ✦</span>
+            <span class="floating-annotation annotation-2" style="--rotation: 8deg">→ ideas flow here</span>
+            <span class="floating-annotation annotation-3" style="--rotation: -5deg">not just text...</span>
+            <span class="floating-annotation annotation-4" style="--rotation: 10deg">♡ structure</span>
+
+            <div class="hero-badge">Now in Private Beta</div>
+
+            <h1>
+                <span class="hero-title-line">Where Ideas</span>
+                <span class="hero-title-line gradient-text">Become Constellations</span>
+            </h1>
+
+            <p class="hero-subtitle">Think in connections, not in lines.</p>
+
+            <p>Stop drowning in linear text. Maps transforms messy thoughts into visual structures you can see, edit,
+                and execute. The AI-native canvas for your best thinking.</p>
+
+            <div class="cta-group">
+                <a href="#" class="btn-primary">Start Mapping <span>→</span></a>
+                <a href="#" class="btn-secondary">Watch the Vision</a>
+            </div>
+        </section>
+
+        <section class="features">
+            <div class="section-header">
+                <p class="section-eyebrow">Why Maps?</p>
+                <h2 class="section-title">Built for how you actually think</h2>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🌌</div>
+                    <h3>Infinite Canvas</h3>
+                    <p>A boundless space where complexity becomes clarity. Map entire systems, decisions, and ideas
+                        without hitting the edge of a page.</p>
+                    <span class="feature-handnote">↳ no more cramped documents</span>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>AI That Structures</h3>
+                    <p>Select any node and let the agent expand it. From vague concept to execution plan in seconds—not
+                        paragraphs, but pathways.</p>
+                    <span class="feature-handnote">↳ the agent gets it</span>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🔐</div>
+                    <h3>Local-First, Always</h3>
+                    <p>Your thoughts never leave your device. Fast, private, offline-capable. No cloud subscription
+                        required for your core thinking tool.</p>
+                    <span class="feature-handnote">↳ your brain, your rules</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="quote-section">
+            <p class="quote-text">
+                "Structure is the new <span class="highlight">syntax</span>."
+            </p>
+            <p class="quote-author">— The Maps Philosophy</p>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-logo">
+            <div class="logo-mark" style="width: 28px; height: 28px; font-size: 0.85rem;">◎</div>
+            <span class="logo-text" style="font-size: 1.1rem;">Maps</span>
+        </div>
+        <p class="footer-tagline">Designed for flow. Built for thinkers.</p>
+        <p class="footer-copy">© 2026 Maps. All rights reserved.</p>
+    </footer>
+</body>
+
+</html>

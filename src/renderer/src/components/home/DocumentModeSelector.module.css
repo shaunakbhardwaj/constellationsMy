@@ -1,0 +1,28 @@
+.selector {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.modeButton {
+    padding: 8px 16px;
+    border: 1px solid var(--glass-border);
+    background: transparent;
+    border-radius: 8px;
+    color: var(--foreground-muted);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.modeButton:hover {
+    border-color: var(--glass-border-hover);
+    color: var(--foreground);
+}
+
+.modeButton.active {
+    background: var(--glass-bg-hover);
+    border-color: var(--glass-border-hover);
+    color: var(--foreground);
+}

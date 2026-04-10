@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Constellations - The Gold Standard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050505;
+            --text-main: #f5f5f5;
+            --gold-start: #bf953f;
+            --gold-mid: #fcf6ba;
+            --gold-end: #b38728;
+            --gold-gradient: linear-gradient(135deg, var(--gold-start), var(--gold-mid), var(--gold-end));
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* Gold Dust Particles */
+        #canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.4;
+        }
+
+        header {
+            padding: 2rem 4rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .logo {
+            font-family: 'Playfair Display', serif;
+            font-size: 2rem;
+            font-style: italic;
+            font-weight: 700;
+            background: var(--gold-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .cta-btn {
+            background: transparent;
+            color: #d4af37;
+            padding: 0.8rem 2rem;
+            border: 1px solid #d4af37;
+            font-family: 'Inter', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.8rem;
+            text-decoration: none;
+            transition: all 0.5s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-btn:hover {
+            background: #d4af37;
+            color: #000;
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
+        }
+
+        main {
+            min-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            position: relative;
+        }
+
+        .laurel-container {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            opacity: 0;
+            animation: fadeIn 2s ease forwards 0.5s;
+        }
+
+        .laurel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #d4af37;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .laurel svg {
+            width: 40px;
+            height: 40px;
+            fill: #d4af37;
+            margin-bottom: 0.5rem;
+        }
+
+        h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 6rem;
+            line-height: 1;
+            font-weight: 400;
+            margin-bottom: 1rem;
+            background: linear-gradient(to bottom, #fff, #888);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            opacity: 0;
+            animation: slideUp 1.5s ease forwards;
+        }
+
+        h1 span {
+            display: block;
+            font-style: italic;
+            background: var(--gold-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.hero-text {
+            max-width: 500px;
+            margin: 2rem auto;
+            color: rgba(255, 255, 255, 0.6);
+            font-weight: 300;
+            line-height: 1.8;
+            opacity: 0;
+            animation: fadeIn 2s ease forwards 1s;
+        }
+
+        .cube-container {
+            width: 200px;
+            height: 200px;
+            position: absolute;
+            top: 50%;
+            right: 10%;
+            transform: translateY(-50%);
+            perspective: 1000px;
+            z-index: -1;
+        }
+
+        .cube {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            animation: rotate 20s infinite linear;
+        }
+
+        .face {
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            background: rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            color: #d4af37;
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.1);
+        }
+
+        .front {
+            transform: rotateY(0deg) translateZ(100px);
+        }
+
+        .back {
+            transform: rotateY(180deg) translateZ(100px);
+        }
+
+        .right {
+            transform: rotateY(90deg) translateZ(100px);
+        }
+
+        .left {
+            transform: rotateY(-90deg) translateZ(100px);
+        }
+
+        .top {
+            transform: rotateX(90deg) translateZ(100px);
+        }
+
+        .bottom {
+            transform: rotateX(-90deg) translateZ(100px);
+        }
+
+        @keyframes rotate {
+            from {
+                transform: rotateX(0deg) rotateY(0deg);
+            }
+
+            to {
+                transform: rotateX(360deg) rotateY(360deg);
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+            }
+        }
+
+        section.showcase {
+            display: flex;
+            justify-content: center;
+            padding: 8rem 0;
+            position: relative;
+        }
+
+        .mock-device {
+            width: 80%;
+            max-width: 1000px;
+            height: 600px;
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 4px;
+            position: relative;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+
+        .mock-screen {
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 50% 50%, #222, #050505);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .node {
+            width: 15px;
+            height: 15px;
+            background: #d4af37;
+            border-radius: 50%;
+            position: absolute;
+            box-shadow: 0 0 15px #d4af37;
+        }
+
+        .line {
+            position: absolute;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #d4af37, transparent);
+            opacity: 0.5;
+            transform-origin: left center;
+        }
+
+        footer {
+            text-align: center;
+            padding: 4rem;
+            color: #444;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas"></canvas>
+
+    <header>
+        <div class="logo">Constellations</div>
+        <a href="#" class="cta-btn">Request Access</a>
+    </header>
+
+    <main>
+        <div class="cube-container">
+            <div class="cube">
+                <div class="face front"></div>
+                <div class="face back"></div>
+                <div class="face right"></div>
+                <div class="face left"></div>
+                <div class="face top"></div>
+                <div class="face bottom"></div>
+            </div>
+        </div>
+
+        <div class="laurel-container">
+            <div class="laurel">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 2C12 2 13 8 16 11C13 14 12 20 12 20C12 20 11 14 8 11C11 8 12 2 12 2Z" />
+                </svg>
+                <span>Design of the Year</span>
+            </div>
+            <div class="laurel">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 2C12 2 13 8 16 11C13 14 12 20 12 20C12 20 11 14 8 11C11 8 12 2 12 2Z" />
+                </svg>
+                <span>Product Hunt #1</span>
+            </div>
+        </div>
+
+        <h1>The Art of <br><span>Structured Thinking</span></h1>
+        <p class="hero-text">
+            Elevate chaos into clarity. A premium workspace for those who think in constellations, designed with
+            uncompromising precision.
+        </p>
+    </main>
+
+    <section class="showcase">
+        <div class="mock-device">
+            <div class="mock-screen">
+                <!-- Manually placed nodes for a nice constellation visual -->
+                <div class="node" style="top: 30%; left: 30%;"></div>
+                <div class="node" style="top: 70%; left: 35%;"></div>
+                <div class="node" style="top: 50%; left: 60%;"></div>
+                <div class="node" style="top: 20%; left: 70%;"></div>
+                <div class="node" style="top: 80%; left: 80%;"></div>
+
+                <div class="line" style="top: 30%; left: 30%; width: 200px; transform: rotate(25deg);"></div>
+                <div class="line" style="top: 70%; left: 35%; width: 250px; transform: rotate(-30deg);"></div>
+                <div class="line" style="top: 50%; left: 60%; width: 150px; transform: rotate(-45deg);"></div>
+                <div class="line" style="top: 50%; left: 60%; width: 200px; transform: rotate(45deg);"></div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        &copy; 2026 CONSTELLATIONS.MY — EST. MMXXVI
+    </footer>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let particles = [];
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.vx = (Math.random() - 0.5) * 0.2;
+                this.vy = (Math.random() - 0.5) * 0.2;
+                this.size = Math.random() * 2;
+                this.alpha = Math.random() * 0.5 + 0.1;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (this.x < 0) this.x = width;
+                if (this.x > width) this.x = 0;
+                if (this.y < 0) this.y = height;
+                if (this.y > height) this.y = 0;
+            }
+
+            draw() {
+                ctx.fillStyle = `rgba(212, 175, 55, ${this.alpha})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function init() {
+            resize();
+            for (let i = 0; i < 100; i++) {
+                particles.push(new Particle());
+            }
+            animate();
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('resize', resize);
+        init();
+    </script>
+</body>
+
+</html>
