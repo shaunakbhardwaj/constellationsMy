@@ -3,13 +3,14 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import * as d3 from 'd3';
 import { MindmapNode } from '@/lib/parseMarkdown';
-import { DocumentMode, MODE_PALETTES, MODE_ROOT_COLORS } from '@/lib/documentModes';
 import styles from './MindmapCanvas.module.css';
 
 // Max children per side before alternating
 const MAX_PER_SIDE = 3;
 const HORIZONTAL_GAP = 70;
 const VERTICAL_GAP = 24;
+const DEFAULT_PALETTE = ['#f97316', '#f43f5e', '#8b5cf6', '#0ea5e9', '#14b8a6', '#84cc16', '#eab308'];
+const ROOT_COLOR = '#0f172a';
 
 const NODE_STYLES = {
     root: {
@@ -108,8 +109,9 @@ const buildNodeMetrics = (text: string, depth: number): NodeMetrics => {
 interface MindmapCanvasProps {
     data: MindmapNode;
     viewKey?: number;
-    documentMode?: DocumentMode;
     selectedNodeId?: string | null;
+    selectedNodeIds?: string[];
+    selectionMode?: boolean;
     editingNodeId?: string | null;
     expandingNodeId?: string | null;
     focusedNodeId?: string | null;
@@ -145,8 +147,9 @@ interface LayoutNode {
 export default function MindmapCanvas({
     data,
     viewKey,
-    documentMode = 'brainstorm',
     selectedNodeId,
+    selectedNodeIds = [],
+    selectionMode = false,
     editingNodeId,
     expandingNodeId,
     focusedNodeId: _focusedNodeId,
@@ -284,7 +287,7 @@ export default function MindmapCanvas({
             x: centerX,
             y: centerY,
             depth: 0,
-            branchColor: MODE_ROOT_COLORS[documentMode],
+            branchColor: ROOT_COLOR,
             isLeft: false,
             mainBranchIndex: -1,
             children: [],
@@ -328,7 +331,7 @@ export default function MindmapCanvas({
                 const childY = rightY + rightHeights[i] / 2;
                 const childMetrics = getMetrics(item.node, 1);
                 const childX = centerX + (rootMetrics.width / 2 + childMetrics.width / 2 + HORIZONTAL_GAP);
-                const palette = MODE_PALETTES[documentMode];
+                const palette = DEFAULT_PALETTE;
                 const color = item.node.branchColor || palette[item.idx % palette.length];
 
                 const childLayout = layoutNode(
@@ -355,7 +358,7 @@ export default function MindmapCanvas({
                 const childY = leftY + leftHeights[i] / 2;
                 const childMetrics = getMetrics(item.node, 1);
                 const childX = centerX - (rootMetrics.width / 2 + childMetrics.width / 2 + HORIZONTAL_GAP);
-                const palette = MODE_PALETTES[documentMode];
+                const palette = DEFAULT_PALETTE;
                 const color = item.node.branchColor || palette[item.idx % palette.length];
 
                 const childLayout = layoutNode(
@@ -374,7 +377,7 @@ export default function MindmapCanvas({
         }
 
         return nodes;
-    }, [documentMode]);
+    }, []);
 
     const renderMindmap = useCallback(() => {
         if (!svgRef.current || !containerRef.current || !data) return;
@@ -462,6 +465,9 @@ export default function MindmapCanvas({
             .attr('opacity', (d) => {
                 // Visual depth indicator: fade deeper nodes
                 const baseOpacity = 0.7 - (d.target.depth - 1) * 0.1;
+                if (selectionMode && selectedNodeIds.length > 0 && !selectedNodeIds.includes(d.target.data.id)) {
+                    return Math.max(0.08, baseOpacity * 0.2);
+                }
                 // Focus mode: dim non-focused branches
                 if (isNodeInFocus && !isNodeInFocus(d.target.data.id)) {
                     return baseOpacity * 0.2;
@@ -491,7 +497,7 @@ export default function MindmapCanvas({
             .append('g')
             .attr('class', (d) => {
                 let classes = styles.node;
-                if (selectedNodeId === d.data.id) classes += ` ${styles.selected}`;
+                if (selectedNodeIds.includes(d.data.id) || selectedNodeId === d.data.id) classes += ` ${styles.selected}`;
                 if (expandingNodeId === d.data.id) classes += ` ${styles.expanding}`;
                 return classes;
             })
@@ -500,6 +506,9 @@ export default function MindmapCanvas({
             .style('opacity', (d) => {
                 // Visual depth indicator: fade deeper nodes
                 const baseOpacity = 1 - (d.depth - 1) * 0.08;
+                if (selectionMode && selectedNodeIds.length > 0 && !selectedNodeIds.includes(d.data.id)) {
+                    return Math.max(0.14, baseOpacity * 0.22);
+                }
                 // Focus mode: dim non-focused branches
                 if (isNodeInFocus && !isNodeInFocus(d.data.id)) {
                     return baseOpacity * 0.25;
@@ -536,7 +545,7 @@ export default function MindmapCanvas({
         nodeGroups.each(function (d) {
             const node = d3.select(this);
             const isRoot = d.depth === 0;
-            const isSelected = selectedNodeId === d.data.id;
+            const isSelected = selectedNodeIds.includes(d.data.id) || selectedNodeId === d.data.id;
             const isExpanding = expandingNodeId === d.data.id;
             const hasChildren = d.data.children.length > 0;
             const isCollapsed = d.data.collapsed;
@@ -551,7 +560,7 @@ export default function MindmapCanvas({
                 .attr('height', rectHeight)
                 .attr('rx', radius)
                 .attr('ry', radius)
-                .attr('fill', isRoot ? '#8b5cf6' : d.branchColor)
+                .attr('fill', isRoot ? ROOT_COLOR : d.branchColor)
                 .attr('opacity', isRoot ? 1 : 0.9)
                 .attr('class', styles.nodeRect);
 
@@ -644,7 +653,7 @@ export default function MindmapCanvas({
                     .attr('cx', rectWidth / 2 - 6)
                     .attr('cy', -rectHeight / 2 + 6)
                     .attr('r', 6)
-                    .attr('fill', '#8b5cf6')
+                    .attr('fill', ROOT_COLOR)
                     .attr('stroke', '#fff')
                     .attr('stroke-width', 1.5);
 
@@ -704,7 +713,7 @@ export default function MindmapCanvas({
                     .style('width', '100%')
                     .style('height', '100%')
                     .style('padding', '0 12px')
-                    .style('background', isRoot ? '#8b5cf6' : editingNode.branchColor)
+                    .style('background', isRoot ? ROOT_COLOR : editingNode.branchColor)
                     .style('border', '2px solid #fff')
                     .style('border-radius', `${rectHeight / 2}px`)
                     .style('color', isRoot ? '#fff' : '#1a1a2e')
@@ -911,11 +920,11 @@ export default function MindmapCanvas({
                 .attr('width', viewportWidth)
                 .attr('height', viewportHeight)
                 .attr('fill', 'none')
-                .attr('stroke', '#8b5cf6')
+                .attr('stroke', ROOT_COLOR)
                 .attr('stroke-width', 2 / minimapScale);
         }
 
-    }, [data, editingNodeId, editValue, onNodeClick, onNodeTitleChange, onEditComplete, onToggleCollapse, onNodeDoubleClick, isNodeInFocus, createBilateralLayout]);
+    }, [data, editingNodeId, editValue, onNodeClick, onNodeTitleChange, onEditComplete, onToggleCollapse, onNodeDoubleClick, isNodeInFocus, createBilateralLayout, selectedNodeId, selectedNodeIds, selectionMode, expandingNodeId]);
 
     // Separate effect for selection visual updates (no full re-render)
     useEffect(() => {
@@ -925,22 +934,22 @@ export default function MindmapCanvas({
         gRef.current.selectAll('.' + styles.node)
             .classed(styles.selected, (d: unknown) => {
                 const node = d as LayoutNode;
-                return selectedNodeId === node.data.id;
+                return selectedNodeIds.includes(node.data.id) || selectedNodeId === node.data.id;
             });
 
         // Update glow filter for selected node
         gRef.current.selectAll('.' + styles.nodeRect)
             .attr('filter', (d: unknown) => {
                 const node = d as LayoutNode;
-                return selectedNodeId === node.data.id ? 'url(#selectedGlow)' : null;
+                return selectedNodeIds.includes(node.data.id) || selectedNodeId === node.data.id ? 'url(#selectedGlow)' : null;
             })
             .attr('stroke', (d: unknown) => {
                 const node = d as LayoutNode;
-                return selectedNodeId === node.data.id ? '#fff' : null;
+                return selectedNodeIds.includes(node.data.id) || selectedNodeId === node.data.id ? '#fff' : null;
             })
             .attr('stroke-width', (d: unknown) => {
                 const node = d as LayoutNode;
-                return selectedNodeId === node.data.id ? 2 : 0;
+                return selectedNodeIds.includes(node.data.id) || selectedNodeId === node.data.id ? 2 : 0;
             });
 
         // Pan to selected node only if it's outside the viewport

@@ -8,12 +8,58 @@ export interface MindmapNode {
   collapsed?: boolean;
 }
 
+function normalizeLineTitle(line: string): string {
+  return line
+    .replace(/^[-*•]\s+/, '')
+    .replace(/^\d+[\).:\-]\s+/, '')
+    .replace(/^#+\s*/, '')
+    .replace(/\*\*/g, '')
+    .trim();
+}
+
+function extractHeadingLines(markdown: string): string[] {
+  return markdown
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => /^(#{1,6})\s+.+$/.test(line));
+}
+
+function fallbackPlainTextToHeadings(markdown: string): string[] {
+  const lines = markdown
+    .split('\n')
+    .map((line) => normalizeLineTitle(line))
+    .filter(Boolean)
+    .filter((line) => !/^```/.test(line));
+
+  if (lines.length === 0) return [];
+
+  const root = lines[0];
+  const remainder = lines.slice(1);
+  const branchCandidates =
+    remainder.length > 0
+      ? remainder
+      : root
+          .split(/[.!?]/)
+          .map((part) => normalizeLineTitle(part))
+          .filter(Boolean)
+          .slice(1);
+
+  const headings = [`# ${root}`];
+  branchCandidates.slice(0, 8).forEach((line) => {
+    headings.push(`## ${line}`);
+  });
+
+  return headings;
+}
+
 /**
  * Parse markdown headings into a tree structure for mindmap visualization.
  * Handles # through #### headings (levels 1-4).
  */
 export function parseMarkdownToTree(markdown: string): MindmapNode | null {
-  const lines = markdown.split('\n').filter(line => line.trim());
+  const headingLines = extractHeadingLines(markdown);
+  const lines = headingLines.length > 0 ? headingLines : fallbackPlainTextToHeadings(markdown);
 
   if (lines.length === 0) {
     return null;
@@ -28,7 +74,8 @@ export function parseMarkdownToTree(markdown: string): MindmapNode | null {
     if (!match) continue;
 
     const level = match[1].length;
-    const title = match[2].trim();
+    const title = normalizeLineTitle(match[2]);
+    if (!title) continue;
 
     const node: MindmapNode = {
       id: `node-${nodeId++}`,
