@@ -13,6 +13,7 @@ No code in this document; it is intended to be followed phase-by-phase to avoid 
 ## Goals (from product vision + your modifications)
 
 - Remove mode selection UI; generating always produces a brainstorm map.
+- Replace weak document modes with stronger **thinking lenses** applied at the moment of expansion or conversion.
 - Add a **Selection Mode** toggle (e.g. “Flowchart” button) on the canvas.
   - When Selection Mode is on: **everything is dimmed by default**.
   - User selects the path/flow they want to execute.
@@ -30,6 +31,57 @@ Make sure to have debugging print statements so it is easier to test/debug.
 
 ---
 
+## Product thesis (office-hours synthesis)
+
+The product should not be framed as "pick a generation mode and get a different-looking map."
+
+The stronger product is:
+
+1) start from a messy idea,
+2) explore it broadly,
+3) interrogate promising branches with different thinking lenses,
+4) select the useful path,
+5) convert that path into an actionable artifact.
+
+That means the core loop becomes:
+
+- **Generate** for breadth
+- **Expand with intent** for depth
+- **Select a path** for narrowing
+- **Convert** for execution
+
+This is a much stronger promise than `Extract / Brainstorm / Flow`, because those modes currently change prompts more than user outcome.
+
+### Recommended wedge
+
+Lead with:
+
+**From vague idea to actionable path**
+
+Target users:
+
+- solo builders
+- PMs
+- students
+- creators
+
+Shared job-to-be-done:
+
+> "I have a fuzzy topic and I want help exploring it, pressure-testing it, and turning one branch into a plan."
+
+### Product decisions implied by this thesis
+
+- `Brainstorm` stays the default generation behavior.
+- `Flow` stops being a generation mode and becomes a **derived artifact/view**.
+- `Extract` is removed as a top-level mode.
+- prompt specialization moves to **expansion lenses** such as:
+  - `Deep Dive`
+  - `Questions`
+  - `Devil's Advocate`
+  - future candidates: `Examples`, `Strategy`, `Risks`, `Plan`
+
+---
+
 ## Non-goals (for initial MVP)
 
 - Free drawing / arbitrary shapes and lines.
@@ -44,8 +96,14 @@ Make sure to have debugging print statements so it is easier to test/debug.
 **Objective:** ensure we can ship incrementally without regressions.
 
 - Add a short manual regression checklist (app loads, generate works, open/save history works, export works).
+- Expand the checklist to explicitly cover mode-related regressions we already found:
+  - generating in each existing mode uses the expected prompt,
+  - opening a saved document restores its rendering state correctly,
+  - autosave does not silently rewrite document metadata,
+  - flow artifacts render directionally rather than as bilateral maps.
 - Add feature flags (internal constants) for staged rollout:
   - `selectionModeEnabled`
+  - `thinkingLensesEnabled`
   - `edgesEnabled`
   - `shapesEnabled`
   - `flowchartArtifactEnabled`
@@ -55,6 +113,39 @@ Make sure to have debugging print statements so it is easier to test/debug.
 **Exit criteria**
 - App behavior unchanged.
 - All existing saved docs still open.
+
+---
+
+## Phase 0.5 — Repair the current mode bugs before removing modes
+
+**Objective:** stabilize current behavior so we migrate from a correct baseline instead of a broken one.
+
+### 0.5A) Restore saved document mode on open
+- When opening a saved document, restore its stored `documentMode` into renderer state before painting the canvas.
+- Guard older or unknown values by mapping:
+  - `extract -> brainstorm`
+  - invalid/missing -> `brainstorm`
+
+### 0.5B) Stop silent metadata drift
+- Ensure autosave writes the correct mode/view metadata for the currently opened document.
+- Add a regression check for:
+  - create doc in one mode,
+  - open it later,
+  - make an edit,
+  - confirm metadata is not unintentionally rewritten.
+
+### 0.5C) Fix incomplete visual mode application
+- Remove any hardcoded root-node color that ignores the active rendering state.
+- Ensure any temporary mode styling applies consistently or is fully removed.
+
+### 0.5D) Acknowledge the structural mismatch
+- Document and isolate the fact that current `flow` generation still renders in the bilateral mindmap layout.
+- Do not invest further in `flow` as a generation mode after this repair step.
+
+**Exit criteria**
+- Saved documents reopen with the expected state.
+- No silent mode rewrites occur on edit/autosave.
+- Temporary mode visuals are internally consistent until the new model ships.
 
 ---
 
@@ -82,6 +173,42 @@ Make sure to have debugging print statements so it is easier to test/debug.
 - No “mode” UI remains.
 - No Extract prompt remains.
 - Old docs with extract mode still open without errors.
+
+---
+
+## Phase 1.5 — Replace document modes with expansion lenses
+
+**Objective:** preserve the valuable prompt specialization without forcing users to choose a document-wide mode up front.
+
+### 1.5A) Product model
+- Keep generation simple: every new document starts as a brainstorm map.
+- Move prompt specialization to the moment of expansion:
+  - default expand
+  - `Deep Dive`
+  - `Questions`
+  - `Devil's Advocate`
+- Treat these as **thinking moves**, not document types.
+
+### 1.5B) UI
+- Add lens buttons directly to the AI expand surface.
+- Keep the default action obvious; advanced lenses should feel like power-ups, not required setup.
+- Add short helper copy so the user understands the job of each lens:
+  - `Deep Dive`: go technical and specific
+  - `Questions`: expose what to investigate
+  - `Devil's Advocate`: surface risks and objections
+
+### 1.5C) Prompt routing
+- Route each lens to its own prompt file.
+- Pass enough local branch context so the lens feels branch-aware rather than globally generic.
+- Preserve custom user instructions as an additional steering input.
+
+### 1.5D) Data and telemetry
+- Persist the last-used lens per expansion action if useful for UX, but do not make it document-defining metadata.
+- Track which lenses actually get used; remove dead ones quickly.
+
+**Exit criteria**
+- Users can deepen a branch with intent without committing the whole document to a mode.
+- Prompt specialization survives mode removal and becomes more legible to the user.
 
 ---
 
@@ -261,7 +388,10 @@ Top toolbar in the canvas overlay should include (minimal MVP set):
 **Objective:** make prompts match the product states and data model.
 
 - Brainstorm generation prompt: optimize for divergent branches (existing brainstorm prompt can be refined).
-- Expand prompt: ensure it respects node types (if we expose type to the model).
+- Expand prompts:
+  - default expand for neutral continuation,
+  - lens-specific prompts for `Deep Dive`, `Questions`, and `Devil's Advocate`,
+  - ensure prompts respect node types and branch context when available.
 - Flowchart generation prompt:
   - takes selected nodes (ordered), user edges (optional), and asks for:
     - node list with `type`
@@ -272,6 +402,26 @@ Top toolbar in the canvas overlay should include (minimal MVP set):
 **Exit criteria**
 - All prompts exist and are used by the correct actions.
 - Flowchart generation output is parseable and stable.
+
+---
+
+## Phase 8.5 — Make the output feel like a real deliverable
+
+**Objective:** turn the "awesome product" moment into something stronger than a prettier map.
+
+- When generating a flowchart artifact, also generate optional companion outputs:
+  - checklist
+  - step-by-step plan
+  - risks / open questions
+- Let the user choose one primary output initially; avoid generating every artifact every time.
+- Make the generated artifact easy to review and refine:
+  - show what came from selected nodes,
+  - show inferred missing steps separately,
+  - allow regenerate from the same selection.
+
+**Exit criteria**
+- The product delivers an execution-ready artifact, not just a transformed visualization.
+- The value proposition is visibly "thinking to action," not "mindmap to mindmap."
 
 ---
 
@@ -294,14 +444,17 @@ Top toolbar in the canvas overlay should include (minimal MVP set):
 ## Recommended execution order (safest)
 
 1) Phase 0 (guardrails)
-2) Phase 1 (remove modes + delete extract)
-3) Phase 2 (Selection Mode + tray)
-4) Phase 3 (edges + labels + style)
-5) Phase 4 (shapes + node types)
-6) Phase 5 (generate flowchart artifact, preserve brainstorm)
-7) Phase 6 (directional layout)
-8) Phase 7 (toolbar polish)
-9) Phase 8–9 (prompt hardening + cleanup)
+2) Phase 0.5 (repair current mode bugs)
+3) Phase 1 (remove modes + delete extract)
+4) Phase 1.5 (ship expansion lenses)
+5) Phase 2 (Selection Mode + tray)
+6) Phase 3 (edges + labels + style)
+7) Phase 4 (shapes + node types)
+8) Phase 5 (generate flowchart artifact, preserve brainstorm)
+9) Phase 6 (directional layout)
+10) Phase 7 (toolbar polish)
+11) Phase 8 + 8.5 (prompt hardening + deliverable outputs)
+12) Phase 9 (cleanup)
 
 ---
 
@@ -312,4 +465,3 @@ Top toolbar in the canvas overlay should include (minimal MVP set):
    - (B) embedded inside the brainstorm doc as an “artifact” field?
 2) Should selection sets be named (Path A/B) from day 1, or just “current selection” first?
 3) For shapes: do we want “dotted shape” as a general outline toggle, or only via `draft`/`ghost` semantics?
-

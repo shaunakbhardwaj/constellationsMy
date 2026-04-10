@@ -2,17 +2,35 @@
 
 import { useRef, useEffect } from 'react';
 import { MindmapNode } from '@/lib/parseMarkdown';
+import { ThinkingLens } from '@/lib/contracts';
 import styles from './AIExpandBar.module.css';
 
 interface AIExpandBarProps {
     node: MindmapNode;
     position: { x: number; y: number };
     onClose: () => void;
-    onExpand: (customInstruction: string) => void;
+    onExpand: (customInstruction: string, lens: ThinkingLens) => void;
     isExpanding?: boolean;
+    selectedLens: ThinkingLens;
+    onLensChange: (lens: ThinkingLens) => void;
 }
 
-export default function AIExpandBar({ node, position, onClose, onExpand, isExpanding = false }: AIExpandBarProps) {
+const LENSES: Array<{ id: ThinkingLens; label: string }> = [
+    { id: 'default', label: 'Expand' },
+    { id: 'deep_dive', label: 'Deep Dive' },
+    { id: 'questions', label: 'Questions' },
+    { id: 'devils_advocate', label: 'Devil’s Advocate' },
+];
+
+export default function AIExpandBar({
+    node,
+    position,
+    onClose,
+    onExpand,
+    isExpanding = false,
+    selectedLens,
+    onLensChange,
+}: AIExpandBarProps) {
     const barRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -49,13 +67,26 @@ export default function AIExpandBar({ node, position, onClose, onExpand, isExpan
     const pos = getPosition();
 
     const handleSubmit = () => {
-        if (!isExpanding) onExpand(inputRef.current?.value || '');
+        if (!isExpanding) onExpand(inputRef.current?.value || '', selectedLens);
     };
 
     return (
         <div ref={barRef} className={`${styles.bar} ${isExpanding ? styles.expanding : ''}`} style={{ left: pos.x, top: pos.y }}>
             <div className={styles.nodeTag}>
                 <span className={styles.nodeTitle}>{node.title}</span>
+            </div>
+            <div className={styles.modesRow}>
+                {LENSES.map((lens) => (
+                    <button
+                        key={lens.id}
+                        className={`${styles.modeButton} ${selectedLens === lens.id ? styles.modeButtonActive : ''}`}
+                        onClick={() => onLensChange(lens.id)}
+                        type="button"
+                        disabled={isExpanding}
+                    >
+                        <span className={styles.modeLabel}>{lens.label}</span>
+                    </button>
+                ))}
             </div>
             <div className={styles.inputRow}>
                 <input
@@ -67,7 +98,7 @@ export default function AIExpandBar({ node, position, onClose, onExpand, isExpan
                     disabled={isExpanding}
                 />
                 <button className={styles.expandButton} onClick={handleSubmit} disabled={isExpanding}>
-                    {isExpanding ? '...' : '✨ Expand'}
+                    {isExpanding ? '...' : 'Run'}
                 </button>
             </div>
             {isExpanding && (

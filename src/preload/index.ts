@@ -3,8 +3,26 @@ import { electronAPI } from '@electron-toolkit/preload'
 
 // Custom APIs for renderer
 const api = {
-    generateMindmap: (params: any) => ipcRenderer.invoke('generate-mindmap', params),
-    expandNode: (params: any) => ipcRenderer.invoke('expand-node', params),
+    source: {
+        ingestText: (params: any) => ipcRenderer.invoke('source:ingest-text', params),
+        ingestPdf: (params: any) => ipcRenderer.invoke('source:ingest-pdf', params),
+    },
+    map: {
+        generateCompression: (params: any) => ipcRenderer.invoke('map:generate-compression', params),
+        expandNodeWithLens: (params: any) => ipcRenderer.invoke('map:expand-node-with-lens', params),
+    },
+    artifact: {
+        createBranchBrief: (params: any) => ipcRenderer.invoke('artifact:create-branch-brief', params),
+        listByDocument: (compressionMapId: string) => ipcRenderer.invoke('artifact:list-by-document', { compressionMapId }),
+    },
+    handoff: {
+        dispatchToCodex: (params: any) => ipcRenderer.invoke('handoff:dispatch-to-codex', params),
+    },
+    log: {
+        event: (params: any) => ipcRenderer.invoke('log:event', params),
+        recent: (limit?: number) => ipcRenderer.invoke('log:recent', { limit }),
+        recentLLM: (limit?: number) => ipcRenderer.invoke('log:recent-llm', { limit }),
+    },
     memory: {
         list: () => ipcRenderer.invoke('memory:list'),
         get: (id: string) => ipcRenderer.invoke('memory:get', { id }),

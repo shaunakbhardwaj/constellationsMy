@@ -99,6 +99,15 @@
     color: #fff;
 }
 
+.modeButtonActive {
+    background: rgba(139, 92, 246, 0.24);
+    border-color: rgba(139, 92, 246, 0.45);
+}
+
+.modeButtonActive .modeLabel {
+    color: #fff;
+}
+
 .toggleInput {
     display: flex;
     align-items: center;
@@ -132,6 +141,9 @@
 }
 
 .inputRow {
+    display: flex;
+    gap: 10px;
+    align-items: center;
     animation: inputSlideDown 0.15s ease-out;
 }
 
@@ -172,6 +184,28 @@
 
 .customInput:disabled {
     opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.expandButton {
+    flex-shrink: 0;
+    padding: 10px 14px;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.95), rgba(59, 130, 246, 0.95));
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 12px;
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.expandButton:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+.expandButton:disabled {
+    opacity: 0.55;
     cursor: not-allowed;
 }
 
