@@ -16,6 +16,57 @@ This file is meant for humans first. It should stay readable and opinionated.
 
 ---
 
+## 2026-04-12 — Mind map interaction/state hardening
+
+## Goal
+
+Fix the mind map canvas interaction bugs where node menus appeared away from the selected node, second-node clicks were swallowed while a menu was open, inline branch editing only accepted one character, and deleting edited/focused nodes could leave the canvas in a dimmed or stuck UI state.
+
+---
+
+## What was changed
+
+The D3 canvas now keeps transient React UI state out of the expensive full SVG redraw path. Selection, path-selection opacity, focus dimming, and expansion styling are applied through lightweight in-place effects instead of recreating the entire D3 graph. This specifically protects node-to-node clicks from being lost when a context menu closes during the document-level `pointerdown` phase.
+
+Node click positioning was also changed so menus anchor from the node's post-zoom screen geometry rather than the stale raw mouse click coordinate. Clicking a node now computes the same centered zoom transform that the canvas will animate toward, then places the context menu beside that target node position.
+
+Inline editing now treats the D3 `foreignObject` input as DOM-local while the user is typing. The app commits the new node title on Enter or blur, instead of pushing every keystroke into React state and forcing the SVG/input to be destroyed and recreated.
+
+The app-level node UI cleanup was tightened. Closing the map, switching selection mode, clicking a new node, and deleting a node now clear stale menu/edit/AI/notes/focus/detail state more deliberately, so a deleted focused node should not leave the rest of the map dimmed.
+
+The hover actions, context menu, and AI expand bar received small motion/radius polish so the hover controls appear closer to the node with a smoother fade/scale transition and the popovers better match the warm monochrome surface rules.
+
+---
+
+## Decisions
+
+- Treat D3-rendered map geometry as the expensive durable layer and React popovers/editing state as transient UI layered over it.
+- Selection/focus/expansion visuals should be updated in place where possible, not by rebuilding the whole SVG.
+- Menu coordinates should be derived from node layout plus zoom transform, not from the pointer event that happened before the zoom animation.
+- Inline editing should commit on completion rather than synchronizing every character through React state.
+- Deleting any node clears focused/detail/edit transient state conservatively instead of trying to preserve a potentially invalid focused branch.
+
+---
+
+## Verification
+
+Ran:
+
+- `npm run typecheck`
+
+The TypeScript node and web checks passed.
+
+---
+
+## Deferred / Known Limitations
+
+This pass was code-level and typecheck-verified. It still needs hands-on Electron/browser dogfooding for the exact flows:
+
+- click node A, then click node B without first clicking empty space
+- add branch, type a multi-character title, blur/Enter to commit
+- delete a newly created/edited node and confirm normal focus/opacity returns
+- hover node actions during pan/zoom
+
 ## 2026-04-10 — Blueprint 2.0 implementation pass
 
 ## Goal
@@ -737,3 +788,103 @@ That keeps debugging cleaner:
 
 - `app.log` answers "what failed in the app?"
 - `llm.log` answers "what did the model say?"
+
+---
+
+## 2026-04-12 — Added local Ollama, concise node details, and Codex exec
+
+## What changed
+
+Flows now supports two model providers:
+
+- Ollama local models through the local OpenAI-compatible endpoint at `http://localhost:11434/v1/chat/completions`
+- OpenRouter hosted models through the existing API-key flow
+
+The Settings panel now defaults to Ollama, keeps OpenRouter available, lets the user edit the Ollama base URL/model, and can refresh installed local Ollama models from `/api/tags`. Map generation, branch expansion, and branch-brief generation all pass provider/model settings through the main-process LLM call path.
+
+Generated map nodes now preserve a concise display label separately from full context. Prompts now ask for headings in the form:
+
+`Short Label :: Full context sentence`
+
+The parser stores the short label in `title` and the full context in `description`. The canvas renders concise bubble labels by default, and hovering a node shows quick actions to view details or expand the branch. Viewing details turns the node into a larger square-ish box that uses the stored description, falling back to notes or the title for older maps.
+
+Codex handoff now has two transports:
+
+- clipboard handoff, preserving the existing behavior
+- `codex exec`, which runs the local Codex CLI from the main process with `--full-auto`, `--sandbox workspace-write`, and the current workspace root
+
+The Codex exec path stores command metadata, stdout/stderr/final-message output, exit code, and status on the execution handoff artifact.
+
+## Implementation details
+
+- Replaced the hard-coded OpenRouter-only call path with a provider-aware `callLLM` helper in main IPC.
+- Added `AiProvider`, map `provider`, node `description`, and expanded Codex handoff transport/status metadata to shared contracts.
+- Added an `ai:list-ollama-models` IPC endpoint and preload bridge.
+- Updated memory persistence to carry map provider metadata.
+- Fixed prompt loading to tolerate existing `prompts/...` call sites so the prompt files actually resolve under `resources/prompts`.
+- Redacted API keys from the main error logging paths touched in this run.
+- Kept Codex execution in the main process and used `spawn` with an args array instead of shell command interpolation.
+
+## Product and UX decisions
+
+- Ollama is the default provider so a user can generate maps without entering an API key.
+- OpenRouter remains available as an explicit provider for hosted models.
+- Concise node labels are the canonical canvas representation; full context lives in node details.
+- Branch expansion remains attached to the node-level AI expand flow rather than becoming a separate global artifact.
+- Direct Codex exec is additive. Clipboard handoff stays available as a fallback and lower-risk path.
+
+## Deferred or kept lightweight
+
+- Codex exec currently runs against the app workspace root and waits for the CLI process to finish before returning status. A future version should add a workspace chooser, streaming run logs, cancellation, and concurrency controls.
+- The detail view is a canvas-level square detail state, not a separate artifact detail page.
+- No automated UI/browser QA was added in this run.
+
+## Verification
+
+- Ran Prettier on touched files.
+- Ran `npm run typecheck` successfully after implementation and formatting.
+
+---
+
+## 2026-04-12 — Warm monochrome UI redesign pass
+
+## Problem
+
+The primary Flows UI still felt like a generic dark AI dashboard: centered composition, Inter-based typography, blue/purple gradients, bright rainbow map branches, and scattered chrome that did not match the requested warm black-and-white direction.
+
+The user explicitly asked for a better map UI using off-white and warm off-black instead of absolute white/black, with stronger typography, structure, cohesion, and light-mode support.
+
+## What changed
+
+Updated the active renderer UI layer:
+
+- [src/renderer/src/globals.css](/Users/shaunakbhardwaj/Work/Maps/src/renderer/src/globals.css)
+- [src/renderer/src/page.module.css](/Users/shaunakbhardwaj/Work/Maps/src/renderer/src/page.module.css)
+- [src/renderer/src/App.tsx](/Users/shaunakbhardwaj/Work/Maps/src/renderer/src/App.tsx)
+- [src/renderer/src/components/layout/CanvasOverlay.tsx](/Users/shaunakbhardwaj/Work/Maps/src/renderer/src/components/layout/CanvasOverlay.tsx)
+- [src/renderer/src/components/layout/CanvasOverlay.module.css](/Users/shaunakbhardwaj/Work/Maps/src/renderer/src/components/layout/CanvasOverlay.module.css)
+- [src/renderer/src/components/mindmap/MindmapCanvas.tsx](/Users/shaunakbhardwaj/Work/Maps/src/renderer/src/components/mindmap/MindmapCanvas.tsx)
+- [src/renderer/src/components/mindmap/MindmapCanvas.module.css](/Users/shaunakbhardwaj/Work/Maps/src/renderer/src/components/mindmap/MindmapCanvas.module.css)
+
+## Design decisions
+
+- Replaced the old dark slate/purple-blue visual language with warm monochrome design tokens.
+- Added a proper light-mode token set using off-white surfaces and warm charcoal text instead of pure white or pure black.
+- Switched typography away from Inter to an Outfit + JetBrains Mono pairing for a more deliberate product UI.
+- Reworked the landing workspace into a two-column composition: creation controls on one side and a compact workflow/map preview on the other.
+- Kept the interface primarily black-and-white, with only muted warm/desaturated map branch colors so the canvas remains readable.
+- Rebuilt the overlay chrome and canvas styling around the same warm neutral tokens.
+- Removed emoji from the canvas overlay footer and replaced the note marker emoji in the D3 canvas with a text marker.
+- Kept borders/radii restrained at 8px or below for the redesigned surface.
+
+## Deferred or kept lightweight
+
+- This pass focused on the primary workspace, overlay, and map canvas. Some secondary panels such as Settings, Diagnostics, context menus, and AI expand dialogs still inherit the new theme variables but have not had a full bespoke layout pass.
+- No new frontend dependencies were added; the redesign stays CSS/D3-based rather than introducing a new icon or animation package.
+- No browser screenshot QA was run because this is an Electron renderer rather than a simple web page, but the renderer was compiled through the production build.
+
+## Verification
+
+- Ran `npm run typecheck` successfully.
+- Ran `npm run build` successfully.
+- Ran `npm run lint`, but it is blocked before code analysis because ESLint 9 cannot find an `eslint.config.*` file in the repo.

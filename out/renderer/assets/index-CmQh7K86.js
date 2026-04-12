@@ -1,4 +1,4 @@
-const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./MindmapCanvas-Bb-vzIhw.js","./MindmapCanvas-CplOWLSV.css"])))=>i.map(i=>d[i]);
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./MindmapCanvas-5x6f1oz1.js","./MindmapCanvas-Dgr02U7t.css"])))=>i.map(i=>d[i]);
 function getDefaultExportFromCjs(x) {
   return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, "default") ? x["default"] : x;
 }
@@ -7049,6 +7049,19 @@ const __vitePreload = function preload(baseModule, deps, importerUrl) {
 function normalizeLineTitle(line) {
   return line.replace(/^[-*•]\s+/, "").replace(/^\d+[\).:\-]\s+/, "").replace(/^#+\s*/, "").replace(/\*\*/g, "").trim();
 }
+function splitTitleAndDescription(rawTitle) {
+  const normalized = normalizeLineTitle(rawTitle);
+  const delimiterMatch = normalized.match(/\s+(?:::|--|—)\s+/);
+  if (!delimiterMatch || delimiterMatch.index === void 0) {
+    return { title: normalized };
+  }
+  const title2 = normalized.slice(0, delimiterMatch.index).trim();
+  const description = normalized.slice(delimiterMatch.index + delimiterMatch[0].length).trim();
+  return {
+    title: title2 || normalized,
+    description: description || void 0
+  };
+}
 function extractHeadingLines(markdown) {
   return markdown.split("\n").map((line) => line.trim()).filter(Boolean).filter((line) => /^(#{1,6})\s+.+$/.test(line));
 }
@@ -7077,13 +7090,14 @@ function parseMarkdownToTree(markdown) {
     const match = line.match(/^(#{1,6})\s+(.+)$/);
     if (!match) continue;
     const level2 = match[1].length;
-    const title2 = normalizeLineTitle(match[2]);
+    const { title: title2, description } = splitTitleAndDescription(match[2]);
     if (!title2) continue;
     const node = {
       id: `node-${nodeId++}`,
       title: title2,
       level: level2,
-      children: []
+      children: [],
+      description
     };
     if (level2 === 1) {
       root = node;
@@ -7423,30 +7437,52 @@ function useMindmapState(initialData) {
 }
 const AVAILABLE_MODELS = [
   { id: "openai/gpt-oss-20b", name: "GPT-OSS 20B", provider: "OpenAI" },
-  { id: "google/gemini-2.0-flash-exp:free", name: "Gemini 2.0 Flash (Free)", provider: "Google" },
-  { id: "anthropic/claude-3.5-sonnet", name: "Claude 3.5 Sonnet", provider: "Anthropic" },
+  {
+    id: "google/gemini-2.0-flash-exp:free",
+    name: "Gemini 2.0 Flash (Free)",
+    provider: "Google"
+  },
+  {
+    id: "anthropic/claude-3.5-sonnet",
+    name: "Claude 3.5 Sonnet",
+    provider: "Anthropic"
+  },
   { id: "openai/gpt-4o", name: "GPT-4o", provider: "OpenAI" },
   { id: "openai/gpt-4o-mini", name: "GPT-4o Mini", provider: "OpenAI" },
   { id: "google/gemini-pro-1.5", name: "Gemini Pro 1.5", provider: "Google" },
-  { id: "meta-llama/llama-3.1-70b-instruct", name: "Llama 3.1 70B", provider: "Meta" }
+  {
+    id: "meta-llama/llama-3.1-70b-instruct",
+    name: "Llama 3.1 70B",
+    provider: "Meta"
+  }
 ];
-const DEFAULT_MODEL = AVAILABLE_MODELS[0].id;
-const overlay$2 = "_overlay_1evrr_1";
-const gridBackground = "_gridBackground_1evrr_22";
-const header$3 = "_header_1evrr_33";
-const headerLeft = "_headerLeft_1evrr_45";
-const headerRight = "_headerRight_1evrr_51";
-const closeButton$3 = "_closeButton_1evrr_57";
-const title$3 = "_title_1evrr_77";
-const hint$1 = "_hint_1evrr_87";
-const separator = "_separator_1evrr_107";
-const exportButton = "_exportButton_1evrr_111";
-const saveBadge = "_saveBadge_1evrr_131";
-const saveBadgeSaving = "_saveBadgeSaving_1evrr_145";
-const saveBadgeSaved = "_saveBadgeSaved_1evrr_149";
-const saveBadgeError = "_saveBadgeError_1evrr_156";
-const content$2 = "_content_1evrr_174";
-const footer$2 = "_footer_1evrr_182";
+const OLLAMA_BASE_URL = "http://localhost:11434";
+const OLLAMA_MODELS = [
+  { id: "gpt-oss:20b", name: "GPT-OSS 20B", provider: "Ollama" },
+  { id: "llama3.2", name: "Llama 3.2", provider: "Ollama" },
+  { id: "qwen3:8b", name: "Qwen3 8B", provider: "Ollama" },
+  { id: "gemma3:4b", name: "Gemma 3 4B", provider: "Ollama" }
+];
+const DEFAULT_PROVIDER = "ollama";
+const DEFAULT_OPENROUTER_MODEL = AVAILABLE_MODELS[0].id;
+const DEFAULT_OLLAMA_MODEL = OLLAMA_MODELS[0].id;
+const DEFAULT_OLLAMA_BASE_URL = OLLAMA_BASE_URL;
+const overlay$2 = "_overlay_dism8_1";
+const gridBackground = "_gridBackground_dism8_12";
+const header$3 = "_header_dism8_24";
+const headerLeft = "_headerLeft_dism8_37";
+const headerRight = "_headerRight_dism8_38";
+const closeButton$3 = "_closeButton_dism8_49";
+const exportButton = "_exportButton_dism8_50";
+const title$3 = "_title_dism8_81";
+const hint$1 = "_hint_dism8_91";
+const separator = "_separator_dism8_112";
+const saveBadge = "_saveBadge_dism8_131";
+const saveBadgeSaving = "_saveBadgeSaving_dism8_146";
+const saveBadgeSaved = "_saveBadgeSaved_dism8_150";
+const saveBadgeError = "_saveBadgeError_dism8_156";
+const content$2 = "_content_dism8_162";
+const footer$2 = "_footer_dism8_170";
 const styles$7 = {
   overlay: overlay$2,
   gridBackground,
@@ -7454,10 +7490,10 @@ const styles$7 = {
   headerLeft,
   headerRight,
   closeButton: closeButton$3,
+  exportButton,
   title: title$3,
   hint: hint$1,
   separator,
-  exportButton,
   saveBadge,
   saveBadgeSaving,
   saveBadgeSaved,
@@ -7500,10 +7536,29 @@ function CanvasOverlay({
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles$7.gridBackground }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { className: styles$7.header, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles$7.headerLeft, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: styles$7.closeButton, onClick: onClose, title: "Close (Esc)", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: "20", height: "20", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "18", y1: "6", x2: "6", y2: "18" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "6", y1: "6", x2: "18", y2: "18" })
-        ] }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            className: styles$7.closeButton,
+            onClick: onClose,
+            title: "Close (Esc)",
+            children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "svg",
+              {
+                width: "20",
+                height: "20",
+                viewBox: "0 0 24 24",
+                fill: "none",
+                stroke: "currentColor",
+                strokeWidth: "2",
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "18", y1: "6", x2: "6", y2: "18" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "6", y1: "6", x2: "18", y2: "18" })
+                ]
+              }
+            )
+          }
+        ),
         /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: styles$7.title, children: title2 })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles$7.headerRight, children: [
@@ -7525,22 +7580,33 @@ function CanvasOverlay({
           ] })
         ] }),
         onExport && /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: styles$7.exportButton, onClick: onExport, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("polyline", { points: "7 10 12 15 17 10" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "12", y1: "15", x2: "12", y2: "3" })
-          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "svg",
+            {
+              width: "18",
+              height: "18",
+              viewBox: "0 0 24 24",
+              fill: "none",
+              stroke: "currentColor",
+              strokeWidth: "2",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("polyline", { points: "7 10 12 15 17 10" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "12", y1: "15", x2: "12", y2: "3" })
+              ]
+            }
+          ),
           "Export PNG"
         ] })
       ] })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles$7.content, children }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles$7.footer, children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "🖱️ Scroll to zoom" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Scroll to zoom" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "•" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "✋ Drag to pan" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Drag to pan" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "•" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "👆 Click node for options" })
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Click a node for options" })
     ] })
   ] });
 }
@@ -7593,6 +7659,7 @@ function NodeContextMenu({
   onClose,
   onColorChange,
   onAddBranch,
+  onViewDetails,
   onAddNotes,
   onOpenAIExpand,
   onEditNode,
@@ -7622,7 +7689,7 @@ function NodeContextMenu({
   }, [onClose]);
   const getAdjustedPosition = () => {
     const menuWidth = 220;
-    const menuHeight = 340;
+    const menuHeight = 390;
     const padding = 16;
     let x = position.x;
     let y = position.y;
@@ -7659,43 +7726,117 @@ function NodeContextMenu({
         )) }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles$6.divider }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: styles$6.menuItem, onClick: onAddBranch, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles$6.menuIcon, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "12", y1: "5", x2: "12", y2: "19" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "5", y1: "12", x2: "19", y2: "12" })
-          ] }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles$6.menuIcon, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "svg",
+            {
+              width: "18",
+              height: "18",
+              viewBox: "0 0 24 24",
+              fill: "none",
+              stroke: "currentColor",
+              strokeWidth: "2",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "12", y1: "5", x2: "12", y2: "19" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "5", y1: "12", x2: "19", y2: "12" })
+              ]
+            }
+          ) }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles$6.menuLabel, children: "Add Branch" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles$6.shortcut, children: "A" })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: styles$6.menuItem, onClick: onAddNotes, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles$6.menuIcon, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "4", y1: "6", x2: "20", y2: "6" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "4", y1: "10", x2: "20", y2: "10" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "4", y1: "14", x2: "16", y2: "14" })
-          ] }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles$6.menuIcon, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "svg",
+            {
+              width: "18",
+              height: "18",
+              viewBox: "0 0 24 24",
+              fill: "none",
+              stroke: "currentColor",
+              strokeWidth: "2",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "4", y1: "6", x2: "20", y2: "6" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "4", y1: "10", x2: "20", y2: "10" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "4", y1: "14", x2: "16", y2: "14" })
+              ]
+            }
+          ) }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles$6.menuLabel, children: "Add Notes" }),
           node.notes && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles$6.badge, children: "✓" })
         ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: styles$6.menuItem, onClick: onViewDetails, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles$6.menuIcon, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "svg",
+            {
+              width: "18",
+              height: "18",
+              viewBox: "0 0 24 24",
+              fill: "none",
+              stroke: "currentColor",
+              strokeWidth: "2",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M4 19.5V4.5A2.5 2.5 0 0 1 6.5 2H20v18H6.5A2.5 2.5 0 0 1 4 17.5" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M8 7h8" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M8 11h8" })
+              ]
+            }
+          ) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles$6.menuLabel, children: "View Details" })
+        ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: styles$6.menuItem, onClick: onOpenAIExpand, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles$6.menuIcon, children: /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", children: /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M12 3L14.5 8.5L20 9.5L16 14L17 20L12 17L7 20L8 14L4 9.5L9.5 8.5L12 3Z" }) }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles$6.menuIcon, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "svg",
+            {
+              width: "18",
+              height: "18",
+              viewBox: "0 0 24 24",
+              fill: "none",
+              stroke: "currentColor",
+              strokeWidth: "2",
+              children: /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M12 3L14.5 8.5L20 9.5L16 14L17 20L12 17L7 20L8 14L4 9.5L9.5 8.5L12 3Z" })
+            }
+          ) }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles$6.menuLabel, children: "AI Expand" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles$6.shortcut, children: "X" })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles$6.divider }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: styles$6.menuItem, onClick: onEditNode, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles$6.menuIcon, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" })
-          ] }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles$6.menuIcon, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "svg",
+            {
+              width: "18",
+              height: "18",
+              viewBox: "0 0 24 24",
+              fill: "none",
+              stroke: "currentColor",
+              strokeWidth: "2",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" })
+              ]
+            }
+          ) }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles$6.menuLabel, children: "Edit Node" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles$6.shortcut, children: "E" })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: styles$6.menuItem, onClick: onRemoveStyles, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles$6.menuIcon, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M4 7V4h16v3" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M9 20h6" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M12 4v16" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "4", y1: "4", x2: "20", y2: "20", strokeWidth: "2.5" })
-          ] }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles$6.menuIcon, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "svg",
+            {
+              width: "18",
+              height: "18",
+              viewBox: "0 0 24 24",
+              fill: "none",
+              stroke: "currentColor",
+              strokeWidth: "2",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M4 7V4h16v3" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M9 20h6" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M12 4v16" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "4", y1: "4", x2: "20", y2: "20", strokeWidth: "2.5" })
+              ]
+            }
+          ) }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles$6.menuLabel, children: "Remove Styles" })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles$6.divider }),
@@ -7707,10 +7848,21 @@ function NodeContextMenu({
             disabled: isRoot,
             title: isRoot ? "Cannot delete root node" : "Delete this node",
             children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles$6.menuIcon, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("polyline", { points: "3 6 5 6 21 6" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" })
-              ] }) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles$6.menuIcon, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                "svg",
+                {
+                  width: "18",
+                  height: "18",
+                  viewBox: "0 0 24 24",
+                  fill: "none",
+                  stroke: "currentColor",
+                  strokeWidth: "2",
+                  children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("polyline", { points: "3 6 5 6 21 6" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" })
+                  ]
+                }
+              ) }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles$6.menuLabel, children: "Delete Node" })
             ]
           }
@@ -7945,19 +8097,22 @@ function useTheme() {
   }
   return context;
 }
-const overlay$1 = "_overlay_swizv_1";
-const panel$1 = "_panel_swizv_24";
-const header$1 = "_header_swizv_46";
-const closeButton$1 = "_closeButton_swizv_60";
-const content = "_content_swizv_80";
-const field = "_field_swizv_87";
-const inputWrapper = "_inputWrapper_swizv_101";
-const input = "_input_swizv_101";
-const toggleButton = "_toggleButton_swizv_129";
-const helpLink = "_helpLink_swizv_150";
-const select = "_select_swizv_163";
-const footer = "_footer_swizv_191";
-const note = "_note_swizv_197";
+const overlay$1 = "_overlay_1gk2f_1";
+const panel$1 = "_panel_1gk2f_24";
+const header$1 = "_header_1gk2f_46";
+const closeButton$1 = "_closeButton_1gk2f_60";
+const content = "_content_1gk2f_80";
+const field = "_field_1gk2f_87";
+const inputWrapper = "_inputWrapper_1gk2f_101";
+const input = "_input_1gk2f_101";
+const toggleButton = "_toggleButton_1gk2f_129";
+const helpLink = "_helpLink_1gk2f_150";
+const helpText = "_helpText_1gk2f_163";
+const errorText = "_errorText_1gk2f_170";
+const inlineButton = "_inlineButton_1gk2f_177";
+const select = "_select_1gk2f_199";
+const footer = "_footer_1gk2f_227";
+const note = "_note_1gk2f_233";
 const styles$3 = {
   overlay: overlay$1,
   panel: panel$1,
@@ -7969,6 +8124,9 @@ const styles$3 = {
   input,
   toggleButton,
   helpLink,
+  helpText,
+  errorText,
+  inlineButton,
   select,
   footer,
   note
@@ -7976,10 +8134,20 @@ const styles$3 = {
 function SettingsPanel({
   isOpen,
   onClose,
+  provider,
+  onProviderChange,
   apiKey,
   onApiKeyChange,
-  model,
-  onModelChange
+  openRouterModel,
+  onOpenRouterModelChange,
+  ollamaModel,
+  onOllamaModelChange,
+  ollamaBaseUrl,
+  onOllamaBaseUrlChange,
+  ollamaModels,
+  ollamaStatus,
+  ollamaError,
+  onRefreshOllamaModels
 }) {
   const [showApiKey, setShowApiKey] = reactExports.useState(false);
   const panelRef = reactExports.useRef(null);
@@ -8006,10 +8174,29 @@ function SettingsPanel({
   return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles$3.overlay, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { ref: panelRef, className: styles$3.panel, children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles$3.header, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { children: "Settings" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: styles$3.closeButton, onClick: onClose, "aria-label": "Close settings", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: "20", height: "20", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "18", y1: "6", x2: "6", y2: "18" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "6", y1: "6", x2: "18", y2: "18" })
-      ] }) })
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          className: styles$3.closeButton,
+          onClick: onClose,
+          "aria-label": "Close settings",
+          children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "svg",
+            {
+              width: "20",
+              height: "20",
+              viewBox: "0 0 24 24",
+              fill: "none",
+              stroke: "currentColor",
+              strokeWidth: "2",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "18", y1: "6", x2: "6", y2: "18" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "6", y1: "6", x2: "18", y2: "18" })
+              ]
+            }
+          )
+        }
+      )
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles$3.content, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles$3.field, children: [
@@ -8030,67 +8217,155 @@ function SettingsPanel({
         )
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles$3.field, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { htmlFor: "settingsApiKey", children: "OpenRouter API Key" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles$3.inputWrapper, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { htmlFor: "settingsProvider", children: "Model Provider" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "select",
+          {
+            id: "settingsProvider",
+            value: provider,
+            onChange: (e) => onProviderChange(e.target.value),
+            className: styles$3.select,
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "ollama", children: "Ollama Local" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "openrouter", children: "OpenRouter API" })
+            ]
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: styles$3.helpText, children: "Ollama runs locally and does not require an API key. OpenRouter stays available for hosted models." })
+      ] }),
+      provider === "ollama" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles$3.field, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { htmlFor: "settingsOllamaBaseUrl", children: "Ollama URL" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles$3.inputWrapper, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             "input",
             {
-              id: "settingsApiKey",
-              type: showApiKey ? "text" : "password",
-              placeholder: "sk-or-v1-...",
-              value: apiKey,
-              onChange: (e) => onApiKeyChange(e.target.value),
+              id: "settingsOllamaBaseUrl",
+              type: "text",
+              placeholder: "http://localhost:11434",
+              value: ollamaBaseUrl,
+              onChange: (e) => onOllamaBaseUrlChange(e.target.value),
               className: styles$3.input
             }
-          ),
+          ) }),
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             "button",
             {
               type: "button",
-              className: styles$3.toggleButton,
-              onClick: () => setShowApiKey(!showApiKey),
-              "aria-label": showApiKey ? "Hide API key" : "Show API key",
-              children: showApiKey ? /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "1", y1: "1", x2: "23", y2: "23" })
-              ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "12", cy: "12", r: "3" })
-              ] })
+              className: styles$3.inlineButton,
+              onClick: onRefreshOllamaModels,
+              disabled: ollamaStatus === "loading",
+              children: ollamaStatus === "loading" ? "Checking Ollama..." : "Refresh Local Models"
+            }
+          ),
+          ollamaError && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: styles$3.errorText, children: ollamaError })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles$3.field, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { htmlFor: "settingsOllamaModel", children: "Local Model" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              id: "settingsOllamaModel",
+              list: "settingsOllamaModels",
+              value: ollamaModel,
+              onChange: (e) => onOllamaModelChange(e.target.value),
+              className: styles$3.input,
+              placeholder: "gpt-oss:20b"
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("datalist", { id: "settingsOllamaModels", children: [
+            .../* @__PURE__ */ new Set([
+              ...ollamaModels,
+              ...OLLAMA_MODELS.map((m) => m.id)
+            ])
+          ].map((id) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: id }, id)) })
+        ] })
+      ] }),
+      provider === "openrouter" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles$3.field, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { htmlFor: "settingsApiKey", children: "OpenRouter API Key" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles$3.inputWrapper, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                id: "settingsApiKey",
+                type: showApiKey ? "text" : "password",
+                placeholder: "sk-or-v1-...",
+                value: apiKey,
+                onChange: (e) => onApiKeyChange(e.target.value),
+                className: styles$3.input
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                type: "button",
+                className: styles$3.toggleButton,
+                onClick: () => setShowApiKey(!showApiKey),
+                "aria-label": showApiKey ? "Hide API key" : "Show API key",
+                children: showApiKey ? /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "svg",
+                  {
+                    width: "18",
+                    height: "18",
+                    viewBox: "0 0 24 24",
+                    fill: "none",
+                    stroke: "currentColor",
+                    strokeWidth: "2",
+                    children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("line", { x1: "1", y1: "1", x2: "23", y2: "23" })
+                    ]
+                  }
+                ) : /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "svg",
+                  {
+                    width: "18",
+                    height: "18",
+                    viewBox: "0 0 24 24",
+                    fill: "none",
+                    stroke: "currentColor",
+                    strokeWidth: "2",
+                    children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("path", { d: "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "12", cy: "12", r: "3" })
+                    ]
+                  }
+                )
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "a",
+            {
+              href: "https://openrouter.ai/keys",
+              target: "_blank",
+              rel: "noopener noreferrer",
+              className: styles$3.helpLink,
+              children: "Get your API key from OpenRouter →"
             }
           )
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "a",
-          {
-            href: "https://openrouter.ai/keys",
-            target: "_blank",
-            rel: "noopener noreferrer",
-            className: styles$3.helpLink,
-            children: "Get your API key from OpenRouter →"
-          }
-        )
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles$3.field, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { htmlFor: "settingsModel", children: "AI Model" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "select",
-          {
-            id: "settingsModel",
-            value: model,
-            onChange: (e) => onModelChange(e.target.value),
-            className: styles$3.select,
-            children: AVAILABLE_MODELS.map((m) => /* @__PURE__ */ jsxRuntimeExports.jsxs("option", { value: m.id, children: [
-              m.name,
-              " (",
-              m.provider,
-              ")"
-            ] }, m.id))
-          }
-        )
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles$3.field, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { htmlFor: "settingsModel", children: "AI Model" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "select",
+            {
+              id: "settingsModel",
+              value: openRouterModel,
+              onChange: (e) => onOpenRouterModelChange(e.target.value),
+              className: styles$3.select,
+              children: AVAILABLE_MODELS.map((m) => /* @__PURE__ */ jsxRuntimeExports.jsxs("option", { value: m.id, children: [
+                m.name,
+                " (",
+                m.provider,
+                ")"
+              ] }, m.id))
+            }
+          )
+        ] })
       ] })
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles$3.footer, children: /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: styles$3.note, children: "Your API key is stored locally in your browser and never sent to our servers." }) })
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles$3.footer, children: /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: styles$3.note, children: "Settings are stored locally on this device. OpenRouter keys are only used for OpenRouter requests." }) })
   ] }) });
 }
 const overlay = "_overlay_21roe_1";
@@ -8337,102 +8612,96 @@ async function logEvent(params) {
   } catch {
   }
 }
-const container = "_container_1xgum_1";
-const navLink = "_navLink_1xgum_194";
-const navLinkActive = "_navLinkActive_1xgum_209";
-const settingsButton = "_settingsButton_1xgum_220";
-const heroSection = "_heroSection_1xgum_254";
-const promptInput = "_promptInput_1xgum_311";
-const generateButton = "_generateButton_1xgum_325";
-const secondaryButton = "_secondaryButton_1xgum_374";
-const error = "_error_1xgum_396";
-const historySection = "_historySection_1xgum_410";
-const historyHeader = "_historyHeader_1xgum_417";
-const historyTitle = "_historyTitle_1xgum_431";
-const historySubtitle = "_historySubtitle_1xgum_439";
-const historyLoading = "_historyLoading_1xgum_446";
-const historyList = "_historyList_1xgum_453";
-const historyCard = "_historyCard_1xgum_459";
-const historyCardActive = "_historyCardActive_1xgum_485";
-const historyCardMain = "_historyCardMain_1xgum_489";
-const historyCardTitle = "_historyCardTitle_1xgum_496";
-const historyCardMeta = "_historyCardMeta_1xgum_505";
-const historyCardActions = "_historyCardActions_1xgum_510";
-const historyActionButton = "_historyActionButton_1xgum_517";
-const historyActionDanger = "_historyActionDanger_1xgum_538";
-const historyEmpty = "_historyEmpty_1xgum_549";
-const loadingCanvas = "_loadingCanvas_1xgum_630";
-const topBar = "_topBar_1xgum_713";
-const brandEyebrow = "_brandEyebrow_1xgum_723";
-const brandTitle = "_brandTitle_1xgum_730";
-const nav = "_nav_1xgum_194";
-const heroCard = "_heroCard_1xgum_758";
-const heroCopy = "_heroCopy_1xgum_767";
-const eyebrow = "_eyebrow_1xgum_771";
-const heroHeading = "_heroHeading_1xgum_779";
-const heroBody = "_heroBody_1xgum_786";
-const inputModeRow = "_inputModeRow_1xgum_793";
-const inputModeButton = "_inputModeButton_1xgum_800";
-const inputModeButtonActive = "_inputModeButtonActive_1xgum_809";
-const sourcePanel = "_sourcePanel_1xgum_815";
-const pasteInput = "_pasteInput_1xgum_821";
-const uploadPanel = "_uploadPanel_1xgum_833";
-const uploadTitle = "_uploadTitle_1xgum_844";
-const hiddenFileInput = "_hiddenFileInput_1xgum_849";
-const uploadButton = "_uploadButton_1xgum_853";
-const primaryAction = "_primaryAction_1xgum_854";
-const successBanner = "_successBanner_1xgum_873";
-const overlayWorkspace = "_overlayWorkspace_1xgum_882";
-const overlayCanvasPane = "_overlayCanvasPane_1xgum_888";
-const overlayRail = "_overlayRail_1xgum_893";
-const railSection = "_railSection_1xgum_903";
-const railHeading = "_railHeading_1xgum_909";
-const railCard = "_railCard_1xgum_916";
-const railTitle = "_railTitle_1xgum_926";
-const railBody = "_railBody_1xgum_932";
-const railMetaRow = "_railMetaRow_1xgum_939";
-const artifactList = "_artifactList_1xgum_940";
-const railActions = "_railActions_1xgum_941";
-const pathControls = "_pathControls_1xgum_942";
-const metaPill = "_metaPill_1xgum_948";
-const pathList = "_pathList_1xgum_957";
-const handoffList = "_handoffList_1xgum_958";
-const pathItem = "_pathItem_1xgum_964";
-const handoffItem = "_handoffItem_1xgum_965";
-const pathIndex = "_pathIndex_1xgum_975";
-const pathTitle = "_pathTitle_1xgum_982";
-const miniButton = "_miniButton_1xgum_987";
-const emptyHint = "_emptyHint_1xgum_997";
+const container = "_container_cgoi0_1";
+const topBar = "_topBar_cgoi0_31";
+const brandEyebrow = "_brandEyebrow_cgoi0_41";
+const brandTitle = "_brandTitle_cgoi0_51";
+const nav = "_nav_cgoi0_59";
+const navLink = "_navLink_cgoi0_72";
+const settingsButton = "_settingsButton_cgoi0_73";
+const secondaryButton = "_secondaryButton_cgoi0_74";
+const historyActionButton = "_historyActionButton_cgoi0_75";
+const miniButton = "_miniButton_cgoi0_76";
+const generateButton = "_generateButton_cgoi0_77";
+const primaryAction = "_primaryAction_cgoi0_78";
+const uploadButton = "_uploadButton_cgoi0_79";
+const navLinkActive = "_navLinkActive_cgoi0_105";
+const heroSection = "_heroSection_cgoi0_142";
+const heroCard = "_heroCard_cgoi0_154";
+const heroCopy = "_heroCopy_cgoi0_177";
+const eyebrow = "_eyebrow_cgoi0_183";
+const heroHeading = "_heroHeading_cgoi0_193";
+const heroBody = "_heroBody_cgoi0_203";
+const inputModeRow = "_inputModeRow_cgoi0_211";
+const inputModeButton = "_inputModeButton_cgoi0_224";
+const inputModeButtonActive = "_inputModeButtonActive_cgoi0_239";
+const sourcePanel = "_sourcePanel_cgoi0_246";
+const promptInput = "_promptInput_cgoi0_255";
+const pasteInput = "_pasteInput_cgoi0_256";
+const uploadPanel = "_uploadPanel_cgoi0_327";
+const uploadTitle = "_uploadTitle_cgoi0_343";
+const hiddenFileInput = "_hiddenFileInput_cgoi0_350";
+const error = "_error_cgoi0_354";
+const successBanner = "_successBanner_cgoi0_355";
+const heroAside = "_heroAside_cgoi0_376";
+const mapPlate = "_mapPlate_cgoi0_383";
+const mapRoot = "_mapRoot_cgoi0_415";
+const mapBranch = "_mapBranch_cgoi0_416";
+const mapLine = "_mapLine_cgoi0_457";
+const statStack = "_statStack_cgoi0_479";
+const statItem = "_statItem_cgoi0_484";
+const statLabel = "_statLabel_cgoi0_500";
+const historySection = "_historySection_cgoi0_509";
+const historyHeader = "_historyHeader_cgoi0_517";
+const historyTitle = "_historyTitle_cgoi0_527";
+const historySubtitle = "_historySubtitle_cgoi0_536";
+const historyLoading = "_historyLoading_cgoi0_563";
+const historyEmpty = "_historyEmpty_cgoi0_564";
+const emptyHint = "_emptyHint_cgoi0_565";
+const historyList = "_historyList_cgoi0_591";
+const historyCard = "_historyCard_cgoi0_596";
+const historyCardActive = "_historyCardActive_cgoi0_622";
+const historyCardMain = "_historyCardMain_cgoi0_627";
+const historyCardTitle = "_historyCardTitle_cgoi0_631";
+const historyCardMeta = "_historyCardMeta_cgoi0_641";
+const historyCardActions = "_historyCardActions_cgoi0_648";
+const historyActionDanger = "_historyActionDanger_cgoi0_659";
+const overlayWorkspace = "_overlayWorkspace_cgoi0_671";
+const overlayCanvasPane = "_overlayCanvasPane_cgoi0_677";
+const overlayRail = "_overlayRail_cgoi0_685";
+const railSection = "_railSection_cgoi0_696";
+const railHeading = "_railHeading_cgoi0_702";
+const railCard = "_railCard_cgoi0_711";
+const pathItem = "_pathItem_cgoi0_712";
+const handoffItem = "_handoffItem_cgoi0_713";
+const railTitle = "_railTitle_cgoi0_727";
+const railBody = "_railBody_cgoi0_735";
+const railMetaRow = "_railMetaRow_cgoi0_742";
+const artifactList = "_artifactList_cgoi0_743";
+const railActions = "_railActions_cgoi0_744";
+const pathControls = "_pathControls_cgoi0_745";
+const metaPill = "_metaPill_cgoi0_751";
+const pathList = "_pathList_cgoi0_765";
+const handoffList = "_handoffList_cgoi0_766";
+const pathIndex = "_pathIndex_cgoi0_780";
+const pathTitle = "_pathTitle_cgoi0_789";
+const loadingCanvas = "_loadingCanvas_cgoi0_803";
 const styles = {
   container,
-  navLink,
-  navLinkActive,
-  settingsButton,
-  heroSection,
-  promptInput,
-  generateButton,
-  secondaryButton,
-  error,
-  historySection,
-  historyHeader,
-  historyTitle,
-  historySubtitle,
-  historyLoading,
-  historyList,
-  historyCard,
-  historyCardActive,
-  historyCardMain,
-  historyCardTitle,
-  historyCardMeta,
-  historyCardActions,
-  historyActionButton,
-  historyActionDanger,
-  historyEmpty,
-  loadingCanvas,
   topBar,
   brandEyebrow,
   brandTitle,
   nav,
+  navLink,
+  settingsButton,
+  secondaryButton,
+  historyActionButton,
+  miniButton,
+  generateButton,
+  primaryAction,
+  uploadButton,
+  navLinkActive,
+  heroSection,
   heroCard,
   heroCopy,
   eyebrow,
@@ -8442,19 +8711,44 @@ const styles = {
   inputModeButton,
   inputModeButtonActive,
   sourcePanel,
+  promptInput,
   pasteInput,
   uploadPanel,
   uploadTitle,
   hiddenFileInput,
-  uploadButton,
-  primaryAction,
+  error,
   successBanner,
+  heroAside,
+  mapPlate,
+  mapRoot,
+  mapBranch,
+  mapLine,
+  statStack,
+  statItem,
+  statLabel,
+  historySection,
+  historyHeader,
+  historyTitle,
+  historySubtitle,
+  historyLoading,
+  historyEmpty,
+  emptyHint,
+  historyList,
+  historyCard,
+  historyCardActive,
+  historyCardMain,
+  historyCardTitle,
+  historyCardMeta,
+  historyCardActions,
+  historyActionDanger,
   overlayWorkspace,
   overlayCanvasPane,
   overlayRail,
   railSection,
   railHeading,
   railCard,
+  pathItem,
+  handoffItem,
   railTitle,
   railBody,
   railMetaRow,
@@ -8464,24 +8758,33 @@ const styles = {
   metaPill,
   pathList,
   handoffList,
-  pathItem,
-  handoffItem,
   pathIndex,
   pathTitle,
-  miniButton,
-  emptyHint
+  loadingCanvas
 };
-const MindmapCanvas = reactExports.lazy(() => __vitePreload(() => import("./MindmapCanvas-Bb-vzIhw.js"), true ? __vite__mapDeps([0,1]) : void 0, import.meta.url));
+const MindmapCanvas = reactExports.lazy(() => __vitePreload(() => import("./MindmapCanvas-5x6f1oz1.js"), true ? __vite__mapDeps([0,1]) : void 0, import.meta.url));
 const STORAGE_KEYS = {
   API_KEY: "mindmap_openrouter_api_key",
-  MODEL: "mindmap_selected_model"
+  MODEL: "mindmap_selected_model",
+  PROVIDER: "mindmap_ai_provider",
+  OPENROUTER_MODEL: "mindmap_openrouter_model",
+  OLLAMA_MODEL: "mindmap_ollama_model",
+  OLLAMA_BASE_URL: "mindmap_ollama_base_url"
 };
 function App() {
   const [inputView, setInputView] = reactExports.useState("ask");
   const [prompt, setPrompt] = reactExports.useState("");
   const [pasteText, setPasteText] = reactExports.useState("");
+  const [provider, setProvider] = reactExports.useState(DEFAULT_PROVIDER);
   const [apiKey, setApiKey] = reactExports.useState("");
-  const [model, setModel] = reactExports.useState(DEFAULT_MODEL);
+  const [openRouterModel, setOpenRouterModel] = reactExports.useState(
+    DEFAULT_OPENROUTER_MODEL
+  );
+  const [ollamaModel, setOllamaModel] = reactExports.useState(DEFAULT_OLLAMA_MODEL);
+  const [ollamaBaseUrl, setOllamaBaseUrl] = reactExports.useState(DEFAULT_OLLAMA_BASE_URL);
+  const [ollamaModels, setOllamaModels] = reactExports.useState([]);
+  const [ollamaStatus, setOllamaStatus] = reactExports.useState("idle");
+  const [ollamaError, setOllamaError] = reactExports.useState(null);
   const [isHydrated, setIsHydrated] = reactExports.useState(false);
   const [isLoading, setIsLoading] = reactExports.useState(false);
   const [error2, setError] = reactExports.useState(null);
@@ -8489,8 +8792,12 @@ function App() {
   const [memoryDocuments, setMemoryDocuments] = reactExports.useState([]);
   const [isHistoryLoading, setIsHistoryLoading] = reactExports.useState(false);
   const [currentMapId, setCurrentMapId] = reactExports.useState(null);
-  const [currentSource, setCurrentSource] = reactExports.useState(null);
-  const [currentArtifacts, setCurrentArtifacts] = reactExports.useState([]);
+  const [currentSource, setCurrentSource] = reactExports.useState(
+    null
+  );
+  const [currentArtifacts, setCurrentArtifacts] = reactExports.useState(
+    []
+  );
   const [isSettingsOpen, setIsSettingsOpen] = reactExports.useState(false);
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = reactExports.useState(false);
   const [isDiagnosticsLoading, setIsDiagnosticsLoading] = reactExports.useState(false);
@@ -8498,7 +8805,9 @@ function App() {
   const [logPath, setLogPath] = reactExports.useState("");
   const [llmEntries, setLLMEntries] = reactExports.useState([]);
   const [llmLogPath, setLLMLogPath] = reactExports.useState("");
-  const [activeTab, setActiveTab] = reactExports.useState("generate");
+  const [activeTab, setActiveTab] = reactExports.useState(
+    "generate"
+  );
   const [isCanvasOpen, setIsCanvasOpen] = reactExports.useState(false);
   const [selectionMode, setSelectionMode] = reactExports.useState(false);
   const [selectedLens, setSelectedLens] = reactExports.useState("default");
@@ -8542,14 +8851,25 @@ function App() {
     movePathNode
   } = mindmapState;
   const [menuState, setMenuState] = reactExports.useState(null);
-  const [notesModalNode, setNotesModalNode] = reactExports.useState(null);
+  const [notesModalNode, setNotesModalNode] = reactExports.useState(
+    null
+  );
   const [deleteConfirmNode, setDeleteConfirmNode] = reactExports.useState(null);
   const [aiExpandModalState, setAiExpandModalState] = reactExports.useState(null);
+  const [detailNodeId, setDetailNodeId] = reactExports.useState(null);
+  const activeModel = provider === "ollama" ? ollamaModel : openRouterModel;
   reactExports.useEffect(() => {
     const storedApiKey = localStorage.getItem(STORAGE_KEYS.API_KEY) || void 0 || "";
-    const storedModel = localStorage.getItem(STORAGE_KEYS.MODEL) || DEFAULT_MODEL;
+    const storedProvider = localStorage.getItem(STORAGE_KEYS.PROVIDER) || DEFAULT_PROVIDER;
+    const legacyModel = localStorage.getItem(STORAGE_KEYS.MODEL) || DEFAULT_OPENROUTER_MODEL;
+    const storedOpenRouterModel = localStorage.getItem(STORAGE_KEYS.OPENROUTER_MODEL) || legacyModel;
+    const storedOllamaModel = localStorage.getItem(STORAGE_KEYS.OLLAMA_MODEL) || DEFAULT_OLLAMA_MODEL;
+    const storedOllamaBaseUrl = localStorage.getItem(STORAGE_KEYS.OLLAMA_BASE_URL) || DEFAULT_OLLAMA_BASE_URL;
     setApiKey(storedApiKey);
-    setModel(storedModel);
+    setProvider(storedProvider === "openrouter" ? "openrouter" : "ollama");
+    setOpenRouterModel(storedOpenRouterModel);
+    setOllamaModel(storedOllamaModel);
+    setOllamaBaseUrl(storedOllamaBaseUrl);
     setIsHydrated(true);
   }, []);
   reactExports.useEffect(() => {
@@ -8558,10 +8878,25 @@ function App() {
     }
   }, [apiKey, isHydrated]);
   reactExports.useEffect(() => {
-    if (isHydrated && model) {
-      localStorage.setItem(STORAGE_KEYS.MODEL, model);
+    if (isHydrated) {
+      localStorage.setItem(STORAGE_KEYS.PROVIDER, provider);
     }
-  }, [model, isHydrated]);
+  }, [provider, isHydrated]);
+  reactExports.useEffect(() => {
+    if (isHydrated && openRouterModel) {
+      localStorage.setItem(STORAGE_KEYS.OPENROUTER_MODEL, openRouterModel);
+    }
+  }, [openRouterModel, isHydrated]);
+  reactExports.useEffect(() => {
+    if (isHydrated && ollamaModel) {
+      localStorage.setItem(STORAGE_KEYS.OLLAMA_MODEL, ollamaModel);
+    }
+  }, [ollamaModel, isHydrated]);
+  reactExports.useEffect(() => {
+    if (isHydrated && ollamaBaseUrl) {
+      localStorage.setItem(STORAGE_KEYS.OLLAMA_BASE_URL, ollamaBaseUrl);
+    }
+  }, [ollamaBaseUrl, isHydrated]);
   reactExports.useEffect(() => {
     if (!successMessage) return;
     const timer = window.setTimeout(() => setSuccessMessage(null), 2400);
@@ -8575,17 +8910,51 @@ function App() {
         window.api.log.recentLLM(60)
       ]);
       if (result?.success) {
-        setDiagnosticEntries(Array.isArray(result.entries) ? result.entries : []);
+        setDiagnosticEntries(
+          Array.isArray(result.entries) ? result.entries : []
+        );
         setLogPath(result.path || "");
       }
       if (llmResult?.success) {
-        setLLMEntries(Array.isArray(llmResult.entries) ? llmResult.entries : []);
+        setLLMEntries(
+          Array.isArray(llmResult.entries) ? llmResult.entries : []
+        );
         setLLMLogPath(llmResult.path || "");
       }
     } finally {
       setIsDiagnosticsLoading(false);
     }
   }, []);
+  const refreshOllamaModels = reactExports.useCallback(async () => {
+    setOllamaStatus("loading");
+    setOllamaError(null);
+    try {
+      const result = await window.api.ai.listOllamaModels({
+        baseUrl: ollamaBaseUrl
+      });
+      if (!result?.success) {
+        throw new Error(result?.error || "Ollama is not reachable.");
+      }
+      const modelIds = Array.isArray(result.models) ? result.models.map(
+        (entry2) => entry2.id || entry2.name
+      ).filter(Boolean) : [];
+      setOllamaModels(modelIds);
+      if (modelIds.length > 0 && !modelIds.includes(ollamaModel)) {
+        setOllamaModel(modelIds[0]);
+      }
+      setOllamaStatus("ok");
+    } catch (err) {
+      setOllamaStatus("error");
+      setOllamaError(
+        err instanceof Error ? err.message : "Ollama is not reachable."
+      );
+    }
+  }, [ollamaBaseUrl, ollamaModel]);
+  reactExports.useEffect(() => {
+    if (isSettingsOpen && provider === "ollama") {
+      void refreshOllamaModels();
+    }
+  }, [isSettingsOpen, provider, refreshOllamaModels]);
   reactExports.useEffect(() => {
     const handleError = (event) => {
       void logEvent({
@@ -8632,9 +9001,13 @@ function App() {
       if (!result?.success) {
         throw new Error(result?.error || "Failed to load map history");
       }
-      setMemoryDocuments(Array.isArray(result.documents) ? result.documents : []);
+      setMemoryDocuments(
+        Array.isArray(result.documents) ? result.documents : []
+      );
     } catch (err) {
-      setHistoryError(err instanceof Error ? err.message : "Failed to load history");
+      setHistoryError(
+        err instanceof Error ? err.message : "Failed to load history"
+      );
     } finally {
       setIsHistoryLoading(false);
     }
@@ -8642,7 +9015,9 @@ function App() {
   const refreshArtifacts = reactExports.useCallback(async (mapId) => {
     const result = await window.api.artifact.listByDocument(mapId);
     if (result?.success) {
-      setCurrentArtifacts(Array.isArray(result.artifacts) ? result.artifacts : []);
+      setCurrentArtifacts(
+        Array.isArray(result.artifacts) ? result.artifacts : []
+      );
     }
   }, []);
   const handleOpenMemoryDocument = reactExports.useCallback(
@@ -8660,6 +9035,16 @@ function App() {
         setCurrentMapId(id);
         setCurrentSource(result.source);
         setSaveStatus("idle");
+        if (doc.provider === "ollama" || doc.provider === "openrouter") {
+          setProvider(doc.provider);
+          if (typeof doc.model === "string" && doc.model) {
+            if (doc.provider === "ollama") {
+              setOllamaModel(doc.model);
+            } else {
+              setOpenRouterModel(doc.model);
+            }
+          }
+        }
         setData(doc.root);
         setSelectedNodeIds(doc.selectedNodeIds || []);
         setSelectedPathOrder(doc.selectedPathOrder || []);
@@ -8675,7 +9060,9 @@ function App() {
           message: "Failed to open compression map",
           meta: { id, error: err instanceof Error ? err.message : String(err) }
         });
-        setHistoryError(err instanceof Error ? err.message : "Failed to open document");
+        setHistoryError(
+          err instanceof Error ? err.message : "Failed to open document"
+        );
       }
     },
     [refreshArtifacts, setData, setSelectedNodeIds, setSelectedPathOrder]
@@ -8695,7 +9082,9 @@ function App() {
           setCurrentArtifacts([]);
         }
       } catch (err) {
-        setHistoryError(err instanceof Error ? err.message : "Failed to delete document");
+        setHistoryError(
+          err instanceof Error ? err.message : "Failed to delete document"
+        );
       }
     },
     [currentMapId]
@@ -8707,7 +9096,7 @@ function App() {
   }, [activeTab, refreshHistory]);
   const createSourceAndMap = reactExports.useCallback(
     async (params) => {
-      if (!apiKey.trim()) {
+      if (provider === "openrouter" && !apiKey.trim()) {
         setError("Please add your OpenRouter API key in Settings.");
         setIsSettingsOpen(true);
         return;
@@ -8744,11 +9133,15 @@ function App() {
           sourceDocumentId: source.id,
           sourceText,
           prompt: params.prompt,
-          apiKey: apiKey.trim(),
-          model
+          provider,
+          apiKey: provider === "openrouter" ? apiKey.trim() : void 0,
+          model: activeModel,
+          ollamaBaseUrl
         });
         if (!mapResult?.success) {
-          throw new Error(mapResult?.error || "Failed to generate compression map");
+          throw new Error(
+            mapResult?.error || "Failed to generate compression map"
+          );
         }
         const parsed = parseMarkdownToTree(mapResult.markdown);
         if (!parsed) {
@@ -8758,7 +9151,8 @@ function App() {
           sourceDocumentId: source.id,
           title: parsed.title,
           root: parsed,
-          model: mapResult.model || model,
+          provider: mapResult.provider || provider,
+          model: mapResult.model || activeModel,
           selectedNodeIds: [],
           selectedPathOrder: [],
           lastUsedLens: "default"
@@ -8782,7 +9176,10 @@ function App() {
           level: "error",
           scope: "renderer.source",
           message: "Failed to create source and map",
-          meta: { inputKind: params.inputKind, error: err instanceof Error ? err.message : String(err) }
+          meta: {
+            inputKind: params.inputKind,
+            error: err instanceof Error ? err.message : String(err)
+          }
         });
         setError(err instanceof Error ? err.message : "Failed to create map");
         setSaveStatus("error");
@@ -8790,7 +9187,15 @@ function App() {
         setIsLoading(false);
       }
     },
-    [apiKey, clearPathSelection, model, setData, upsertMemoryDocument]
+    [
+      activeModel,
+      apiKey,
+      clearPathSelection,
+      ollamaBaseUrl,
+      provider,
+      setData,
+      upsertMemoryDocument
+    ]
   );
   reactExports.useEffect(() => {
     if (!currentMapId || !root) return;
@@ -8804,7 +9209,8 @@ function App() {
         id: currentMapId,
         title: root.title,
         root,
-        model,
+        provider,
+        model: activeModel,
         lastUsedLens: selectedLens,
         selectedNodeIds,
         selectedPathOrder
@@ -8816,15 +9222,28 @@ function App() {
       } else {
         setSaveStatus("error");
       }
-      if (saveResetTimerRef.current) window.clearTimeout(saveResetTimerRef.current);
-      saveResetTimerRef.current = window.setTimeout(() => setSaveStatus("idle"), 1200);
+      if (saveResetTimerRef.current)
+        window.clearTimeout(saveResetTimerRef.current);
+      saveResetTimerRef.current = window.setTimeout(
+        () => setSaveStatus("idle"),
+        1200
+      );
     }, 650);
     return () => {
       if (autosaveTimerRef.current) {
         window.clearTimeout(autosaveTimerRef.current);
       }
     };
-  }, [currentMapId, model, root, selectedLens, selectedNodeIds, selectedPathOrder, upsertMemoryDocument]);
+  }, [
+    activeModel,
+    currentMapId,
+    provider,
+    root,
+    selectedLens,
+    selectedNodeIds,
+    selectedPathOrder,
+    upsertMemoryDocument
+  ]);
   const handlePromptGenerate = reactExports.useCallback(() => {
     if (!prompt.trim()) {
       setError("Enter a question or task to compress into a map.");
@@ -8867,6 +9286,20 @@ function App() {
     },
     [selectionMode, setSelectedNodeId, togglePathSelection]
   );
+  const handleViewNodeDetails = reactExports.useCallback(
+    (node) => {
+      setDetailNodeId((current) => current === node.id ? null : node.id);
+      setSelectedNodeId(node.id);
+    },
+    [setSelectedNodeId]
+  );
+  const handleOpenAIExpandForNode = reactExports.useCallback(
+    (node, position) => {
+      setAiExpandModalState({ node, position });
+      setSelectedNodeId(node.id);
+    },
+    [setSelectedNodeId]
+  );
   const handleCloseMenu = reactExports.useCallback(() => {
     setMenuState(null);
     setSelectedNodeId(null);
@@ -8890,9 +9323,14 @@ function App() {
   );
   const handleAIExpand = reactExports.useCallback(
     async (customInstruction, lens) => {
-      if (!aiExpandModalState || !apiKey.trim()) return;
+      if (!aiExpandModalState) return;
+      if (provider === "openrouter" && !apiKey.trim()) {
+        setError("Please add your OpenRouter API key in Settings.");
+        setIsSettingsOpen(true);
+        return;
+      }
       const nodeId = aiExpandModalState.node.id;
-      const nodeTopic = aiExpandModalState.node.title;
+      const nodeTopic = aiExpandModalState.node.description ? `${aiExpandModalState.node.title}: ${aiExpandModalState.node.description}` : aiExpandModalState.node.title;
       setSelectedLens(lens);
       setAiExpandModalState(null);
       setExpandingNodeId(nodeId);
@@ -8900,8 +9338,10 @@ function App() {
         const result = await window.api.map.expandNodeWithLens({
           topic: nodeTopic,
           context: getNodePath(nodeId),
-          apiKey: apiKey.trim(),
-          model,
+          provider,
+          apiKey: provider === "openrouter" ? apiKey.trim() : void 0,
+          model: activeModel,
+          ollamaBaseUrl,
           rootTopic: root?.title || "",
           siblings: getSiblingTitles(nodeId),
           customInstruction,
@@ -8920,14 +9360,31 @@ function App() {
           level: "error",
           scope: "renderer.expand",
           message: "Failed to expand node",
-          meta: { lens, nodeId, error: err instanceof Error ? err.message : String(err) }
+          meta: {
+            lens,
+            nodeId,
+            error: err instanceof Error ? err.message : String(err)
+          }
         });
         setError(err instanceof Error ? err.message : "Failed to expand node");
       } finally {
         setExpandingNodeId(null);
       }
     },
-    [aiExpandModalState, apiKey, collapseSiblings, currentSource?.inputKind, expandNode, getNodePath, getSiblingTitles, model, root?.title, setExpandingNodeId]
+    [
+      activeModel,
+      aiExpandModalState,
+      apiKey,
+      collapseSiblings,
+      currentSource?.inputKind,
+      expandNode,
+      getNodePath,
+      getSiblingTitles,
+      ollamaBaseUrl,
+      provider,
+      root?.title,
+      setExpandingNodeId
+    ]
   );
   const handleGenerateBranchBrief = reactExports.useCallback(async () => {
     if (!currentMapId) return;
@@ -8935,8 +9392,10 @@ function App() {
       compressionMapId: currentMapId,
       selectedNodeIds,
       selectedPathOrder,
-      apiKey: apiKey.trim() || void 0,
-      model
+      provider,
+      apiKey: provider === "openrouter" ? apiKey.trim() || void 0 : void 0,
+      model: activeModel,
+      ollamaBaseUrl
     });
     if (!result?.success) {
       void logEvent({
@@ -8948,28 +9407,49 @@ function App() {
       setError(result?.error || "Failed to generate branch brief");
       return;
     }
-    setCurrentArtifacts((prev) => [result.artifact, ...prev.filter((item) => item.id !== result.artifact.id)]);
+    setCurrentArtifacts((prev) => [
+      result.artifact,
+      ...prev.filter((item) => item.id !== result.artifact.id)
+    ]);
     setSuccessMessage("Branch brief generated.");
-  }, [apiKey, currentMapId, model, selectedNodeIds, selectedPathOrder]);
+  }, [
+    activeModel,
+    apiKey,
+    currentMapId,
+    ollamaBaseUrl,
+    provider,
+    selectedNodeIds,
+    selectedPathOrder
+  ]);
   const handleDispatchToCodex = reactExports.useCallback(
-    async (branchBriefId) => {
+    async (branchBriefId, transport = "clipboard") => {
       if (!currentMapId) return;
       const result = await window.api.handoff.dispatchToCodex({
         branchBriefId,
-        compressionMapId: currentMapId
+        compressionMapId: currentMapId,
+        transport
       });
       if (!result?.success) {
         void logEvent({
           level: "error",
           scope: "renderer.handoff",
           message: "Failed to dispatch branch brief to Codex",
-          meta: { currentMapId, branchBriefId, error: result?.error || "Unknown error" }
+          meta: {
+            currentMapId,
+            branchBriefId,
+            error: result?.error || "Unknown error"
+          }
         });
         setError(result?.error || "Failed to dispatch to Codex");
         return;
       }
-      setCurrentArtifacts((prev) => [result.artifact, ...prev.filter((item) => item.id !== result.artifact.id)]);
-      setSuccessMessage("Copied Codex handoff to clipboard.");
+      setCurrentArtifacts((prev) => [
+        result.artifact,
+        ...prev.filter((item) => item.id !== result.artifact.id)
+      ]);
+      setSuccessMessage(
+        transport === "codex_exec" ? `Codex exec ${result.artifact.status}.` : "Copied Codex handoff to clipboard."
+      );
     },
     [currentMapId]
   );
@@ -8978,11 +9458,15 @@ function App() {
     [getNode, selectedPathOrder]
   );
   const branchBriefs = reactExports.useMemo(
-    () => currentArtifacts.filter((item) => item.kind === "branch_brief"),
+    () => currentArtifacts.filter(
+      (item) => item.kind === "branch_brief"
+    ),
     [currentArtifacts]
   );
   const handoffs = reactExports.useMemo(
-    () => currentArtifacts.filter((item) => item.kind === "execution_handoff"),
+    () => currentArtifacts.filter(
+      (item) => item.kind === "execution_handoff"
+    ),
     [currentArtifacts]
   );
   const latestBrief = branchBriefs[0] || null;
@@ -8996,8 +9480,22 @@ function App() {
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.brandTitle, children: "Compress. Select. Dispatch." })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("nav", { className: styles.nav, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: `${styles.navLink} ${activeTab === "generate" ? styles.navLinkActive : ""}`, onClick: () => setActiveTab("generate"), children: "Workspace" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: `${styles.navLink} ${activeTab === "history" ? styles.navLinkActive : ""}`, onClick: () => setActiveTab("history"), children: "Map History" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            className: `${styles.navLink} ${activeTab === "generate" ? styles.navLinkActive : ""}`,
+            onClick: () => setActiveTab("generate"),
+            children: "Workspace"
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            className: `${styles.navLink} ${activeTab === "history" ? styles.navLinkActive : ""}`,
+            onClick: () => setActiveTab("history"),
+            children: "Map History"
+          }
+        ),
         /* @__PURE__ */ jsxRuntimeExports.jsx(
           "button",
           {
@@ -9009,77 +9507,133 @@ function App() {
             children: "Diagnostics"
           }
         ),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: styles.settingsButton, onClick: () => setIsSettingsOpen(true), children: "Settings" })
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            className: styles.settingsButton,
+            onClick: () => setIsSettingsOpen(true),
+            children: "Settings"
+          }
+        )
       ] })
     ] }),
-    activeTab === "generate" && /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: styles.heroSection, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles.heroCard, children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles.heroCopy, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: styles.eyebrow, children: "Turn dense input into a chosen path" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: styles.heroHeading, children: "Flows is your compression surface for long AI output and dense documents." }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: styles.heroBody, children: "Ingest a prompt, a pasted answer, or a PDF. Compress it into a navigable branch map. Pressure-test one path and send it to Codex." })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.inputModeRow, children: ["ask", "paste", "pdf"].map((view) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "button",
-        {
-          className: `${styles.inputModeButton} ${inputView === view ? styles.inputModeButtonActive : ""}`,
-          onClick: () => {
-            setInputView(view);
-            setError(null);
+    activeTab === "generate" && /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: styles.heroSection, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles.heroCard, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles.heroCopy, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: styles.eyebrow, children: "Turn dense input into a chosen path" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: styles.heroHeading, children: "Flows is your compression surface for long AI output and dense documents." }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: styles.heroBody, children: "Ingest a prompt, a pasted answer, or a PDF. Compress it into a navigable branch map. Pressure-test one path and send it to Codex." })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.inputModeRow, children: ["ask", "paste", "pdf"].map((view) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            className: `${styles.inputModeButton} ${inputView === view ? styles.inputModeButtonActive : ""}`,
+            onClick: () => {
+              setInputView(view);
+              setError(null);
+            },
+            children: view === "ask" ? "Ask" : view === "paste" ? "Paste" : "Drop PDF"
           },
-          children: view === "ask" ? "Ask" : view === "paste" ? "Paste" : "Drop PDF"
-        },
-        view
-      )) }),
-      inputView === "ask" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles.sourcePanel, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "input",
-          {
-            type: "text",
-            placeholder: "What do you want to compress into a map?",
-            value: prompt,
-            onChange: (e) => setPrompt(e.target.value),
-            className: styles.promptInput,
-            disabled: isLoading
-          }
-        ),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: handlePromptGenerate, disabled: isLoading || !prompt.trim(), className: styles.generateButton, children: isLoading ? "Compressing…" : "Compress Prompt" })
+          view
+        )) }),
+        inputView === "ask" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles.sourcePanel, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              type: "text",
+              placeholder: "What do you want to compress into a map?",
+              value: prompt,
+              onChange: (e) => setPrompt(e.target.value),
+              className: styles.promptInput,
+              disabled: isLoading
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              onClick: handlePromptGenerate,
+              disabled: isLoading || !prompt.trim(),
+              className: styles.generateButton,
+              children: isLoading ? "Compressing…" : "Compress Prompt"
+            }
+          )
+        ] }),
+        inputView === "paste" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles.sourcePanel, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "textarea",
+            {
+              className: styles.pasteInput,
+              placeholder: "Paste the long LLM response, meeting notes, spec, or research dump you want to compress.",
+              value: pasteText,
+              onChange: (e) => setPasteText(e.target.value),
+              disabled: isLoading
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              onClick: handlePasteGenerate,
+              disabled: isLoading || !pasteText.trim(),
+              className: styles.generateButton,
+              children: isLoading ? "Compressing…" : "Compress Text"
+            }
+          )
+        ] }),
+        inputView === "pdf" && /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: styles.uploadPanel, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles.uploadTitle, children: "Choose a PDF and Flows will extract its text and compress it into branches." }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              type: "file",
+              accept: "application/pdf",
+              onChange: (e) => handlePdfGenerate(e.target.files?.[0] || null),
+              disabled: isLoading,
+              className: styles.hiddenFileInput
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles.uploadButton, children: isLoading ? "Reading PDF…" : "Choose PDF" })
+        ] }),
+        (error2 || successMessage) && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: error2 ? styles.error : styles.successBanner, children: error2 || successMessage })
       ] }),
-      inputView === "paste" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles.sourcePanel, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "textarea",
-          {
-            className: styles.pasteInput,
-            placeholder: "Paste the long LLM response, meeting notes, spec, or research dump you want to compress.",
-            value: pasteText,
-            onChange: (e) => setPasteText(e.target.value),
-            disabled: isLoading
-          }
-        ),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: handlePasteGenerate, disabled: isLoading || !pasteText.trim(), className: styles.generateButton, children: isLoading ? "Compressing…" : "Compress Text" })
-      ] }),
-      inputView === "pdf" && /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: styles.uploadPanel, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles.uploadTitle, children: "Choose a PDF and Flows will extract its text and compress it into branches." }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "input",
-          {
-            type: "file",
-            accept: "application/pdf",
-            onChange: (e) => handlePdfGenerate(e.target.files?.[0] || null),
-            disabled: isLoading,
-            className: styles.hiddenFileInput
-          }
-        ),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles.uploadButton, children: isLoading ? "Reading PDF…" : "Choose PDF" })
-      ] }),
-      (error2 || successMessage) && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: error2 ? styles.error : styles.successBanner, children: error2 || successMessage })
-    ] }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("aside", { className: styles.heroAside, "aria-label": "Workflow summary", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles.mapPlate, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.mapRoot, children: "Source" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.mapBranch, children: "Compress" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.mapBranch, children: "Choose" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.mapBranch, children: "Dispatch" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.mapLine })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles.statStack, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles.statItem, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles.statLabel, children: "Input" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Prompt, text, or PDF" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles.statItem, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles.statLabel, children: "Map" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Concise labels, full context" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles.statItem, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles.statLabel, children: "Handoff" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Branch brief for Codex" })
+          ] })
+        ] })
+      ] })
+    ] }),
     activeTab === "history" && /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: styles.historySection, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles.historyHeader, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: styles.historyTitle, children: "Compression Maps" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: styles.historySubtitle, children: "Every source, selected path, brief, and handoff stays linked." })
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: styles.secondaryButton, onClick: refreshHistory, disabled: isHistoryLoading, children: isHistoryLoading ? "Refreshing…" : "Refresh" })
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            className: styles.secondaryButton,
+            onClick: refreshHistory,
+            disabled: isHistoryLoading,
+            children: isHistoryLoading ? "Refreshing…" : "Refresh"
+          }
+        )
       ] }),
       historyError && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.error, children: historyError }),
       isHistoryLoading ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.historyLoading, children: "Loading…" }) : memoryDocuments.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.historyEmpty, children: "Create your first compression map and it will appear here." }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.historyList, children: memoryDocuments.map((doc) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
@@ -9104,14 +9658,28 @@ function App() {
               ] })
             ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles.historyCardActions, children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: styles.historyActionButton, onClick: (e) => {
-                e.stopPropagation();
-                handleOpenMemoryDocument(doc.id);
-              }, children: "Open" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: `${styles.historyActionButton} ${styles.historyActionDanger}`, onClick: (e) => {
-                e.stopPropagation();
-                handleDeleteMemoryDocument(doc.id);
-              }, children: "Delete" })
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  className: styles.historyActionButton,
+                  onClick: (e) => {
+                    e.stopPropagation();
+                    handleOpenMemoryDocument(doc.id);
+                  },
+                  children: "Open"
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  className: `${styles.historyActionButton} ${styles.historyActionDanger}`,
+                  onClick: (e) => {
+                    e.stopPropagation();
+                    handleDeleteMemoryDocument(doc.id);
+                  },
+                  children: "Delete"
+                }
+              )
             ] })
           ]
         },
@@ -9123,10 +9691,20 @@ function App() {
       {
         isOpen: isSettingsOpen,
         onClose: () => setIsSettingsOpen(false),
+        provider,
+        onProviderChange: setProvider,
         apiKey,
         onApiKeyChange: setApiKey,
-        model,
-        onModelChange: setModel
+        openRouterModel,
+        onOpenRouterModelChange: setOpenRouterModel,
+        ollamaModel,
+        onOllamaModelChange: setOllamaModel,
+        ollamaBaseUrl,
+        onOllamaBaseUrlChange: setOllamaBaseUrl,
+        ollamaModels,
+        ollamaStatus,
+        ollamaError,
+        onRefreshOllamaModels: refreshOllamaModels
       }
     ),
     /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -9151,25 +9729,34 @@ function App() {
         onExport: handleExport,
         saveStatus: currentMapId ? saveStatus : "idle",
         children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles.overlayWorkspace, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.overlayCanvasPane, children: root && /* @__PURE__ */ jsxRuntimeExports.jsx(reactExports.Suspense, { fallback: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.loadingCanvas, children: "Loading visualization..." }), children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-            MindmapCanvas,
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.overlayCanvasPane, children: root && /* @__PURE__ */ jsxRuntimeExports.jsx(
+            reactExports.Suspense,
             {
-              data: root,
-              viewKey,
-              selectedNodeId,
-              selectedNodeIds,
-              selectionMode,
-              editingNodeId,
-              expandingNodeId,
-              focusedNodeId,
-              onNodeClick: handleNodeClick,
-              onNodeTitleChange: (nodeId, newTitle) => updateNode(nodeId, { title: newTitle }),
-              onEditComplete: () => setEditingNodeId(null),
-              onToggleCollapse: toggleCollapse,
-              onNodeDoubleClick: (nodeId) => setFocusedNodeId(focusedNodeId === nodeId ? null : nodeId),
-              isNodeInFocus
+              fallback: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.loadingCanvas, children: "Loading visualization..." }),
+              children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+                MindmapCanvas,
+                {
+                  data: root,
+                  viewKey,
+                  selectedNodeId,
+                  selectedNodeIds,
+                  selectionMode,
+                  editingNodeId,
+                  expandingNodeId,
+                  detailNodeId,
+                  focusedNodeId,
+                  onNodeClick: handleNodeClick,
+                  onViewNodeDetails: handleViewNodeDetails,
+                  onOpenAIExpand: handleOpenAIExpandForNode,
+                  onNodeTitleChange: (nodeId, newTitle) => updateNode(nodeId, { title: newTitle }),
+                  onEditComplete: () => setEditingNodeId(null),
+                  onToggleCollapse: toggleCollapse,
+                  onNodeDoubleClick: (nodeId) => setFocusedNodeId(focusedNodeId === nodeId ? null : nodeId),
+                  isNodeInFocus
+                }
+              )
             }
-          ) }) }),
+          ) }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("aside", { className: styles.overlayRail, children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles.railSection, children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.railHeading, children: "Source" }),
@@ -9185,8 +9772,23 @@ function App() {
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles.railSection, children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.railHeading, children: "Selected Path" }),
               /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles.railActions, children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: styles.secondaryButton, onClick: () => setSelectionMode((value) => !value), children: selectionMode ? "Exit Selection" : "Select Path" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: styles.secondaryButton, onClick: clearPathSelection, disabled: selectedPathOrder.length === 0, children: "Clear" })
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    className: styles.secondaryButton,
+                    onClick: () => setSelectionMode((value) => !value),
+                    children: selectionMode ? "Exit Selection" : "Select Path"
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    className: styles.secondaryButton,
+                    onClick: clearPathSelection,
+                    disabled: selectedPathOrder.length === 0,
+                    children: "Clear"
+                  }
+                )
               ] }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.pathList, children: selectedPathNodes.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.emptyHint, children: "Toggle selection mode and click nodes to build a branch path." }) : selectedPathNodes.map((node, index) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles.pathItem, children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
@@ -9197,20 +9799,60 @@ function App() {
                   /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.pathTitle, children: node.title })
                 ] }),
                 /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles.pathControls, children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: styles.miniButton, onClick: () => movePathNode(node.id, "up"), disabled: index === 0, children: "↑" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: styles.miniButton, onClick: () => movePathNode(node.id, "down"), disabled: index === selectedPathNodes.length - 1, children: "↓" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: styles.miniButton, onClick: () => togglePathSelection(node.id), children: "×" })
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "button",
+                    {
+                      className: styles.miniButton,
+                      onClick: () => movePathNode(node.id, "up"),
+                      disabled: index === 0,
+                      children: "↑"
+                    }
+                  ),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "button",
+                    {
+                      className: styles.miniButton,
+                      onClick: () => movePathNode(node.id, "down"),
+                      disabled: index === selectedPathNodes.length - 1,
+                      children: "↓"
+                    }
+                  ),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "button",
+                    {
+                      className: styles.miniButton,
+                      onClick: () => togglePathSelection(node.id),
+                      children: "×"
+                    }
+                  )
                 ] })
               ] }, node.id)) }),
               /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles.railActions, children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: styles.primaryAction, onClick: handleGenerateBranchBrief, disabled: selectedPathOrder.length === 0, children: "Generate Brief" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    className: styles.primaryAction,
+                    onClick: handleGenerateBranchBrief,
+                    disabled: selectedPathOrder.length === 0,
+                    children: "Generate Brief"
+                  }
+                ),
                 /* @__PURE__ */ jsxRuntimeExports.jsx(
                   "button",
                   {
                     className: styles.secondaryButton,
                     onClick: () => latestBrief && handleDispatchToCodex(latestBrief.id),
                     disabled: !latestBrief,
-                    children: "Send to Codex"
+                    children: "Copy for Codex"
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    className: styles.secondaryButton,
+                    onClick: () => latestBrief && handleDispatchToCodex(latestBrief.id, "codex_exec"),
+                    disabled: !latestBrief || isLoading,
+                    children: "Run Codex Exec"
                   }
                 )
               ] })
@@ -9221,12 +9863,33 @@ function App() {
                 /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.railTitle, children: latestBrief.brief.title }),
                 /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: styles.railBody, children: latestBrief.brief.summary }),
                 /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.artifactList, children: latestBrief.brief.keyPoints.slice(0, 4).map((point) => /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: styles.metaPill, children: point }, point)) }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.railActions, children: /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: styles.primaryAction, onClick: () => handleDispatchToCodex(latestBrief.id), children: "Send to Codex" }) })
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles.railActions, children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "button",
+                    {
+                      className: styles.primaryAction,
+                      onClick: () => handleDispatchToCodex(latestBrief.id),
+                      children: "Copy for Codex"
+                    }
+                  ),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "button",
+                    {
+                      className: styles.secondaryButton,
+                      onClick: () => handleDispatchToCodex(latestBrief.id, "codex_exec"),
+                      children: "Run Codex Exec"
+                    }
+                  )
+                ] })
               ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.emptyHint, children: "Generate a branch brief to capture the chosen path." }),
               handoffs.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.handoffList, children: handoffs.map((handoff) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles.handoffItem, children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.pathTitle, children: handoff.payload.title }),
                 /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: styles.historyCardMeta, children: [
-                  "Codex • ",
+                  "Codex •",
+                  " ",
+                  handoff.transport === "codex_exec" ? "exec" : "clipboard",
+                  " ",
+                  "• ",
                   handoff.status
                 ] })
               ] }, handoff.id)) })
@@ -9251,12 +9914,19 @@ function App() {
           if (newNode) setEditingNodeId(newNode.id);
           handleCloseMenu();
         },
+        onViewDetails: () => {
+          handleViewNodeDetails(menuState.node);
+          handleCloseMenu();
+        },
         onAddNotes: () => {
           setNotesModalNode(menuState.node);
           handleCloseMenu();
         },
         onOpenAIExpand: () => {
-          setAiExpandModalState({ node: menuState.node, position: menuState.position });
+          setAiExpandModalState({
+            node: menuState.node,
+            position: menuState.position
+          });
           handleCloseMenu();
         },
         onEditNode: () => {
@@ -9321,13 +9991,14 @@ function parseExpandedContent(markdown, parentLevel) {
     const match = line.match(/^(#{1,6})\s+(.+)$/);
     if (!match) continue;
     const hashes = match[1].length;
-    const title2 = match[2].trim();
+    const { title: title2, description } = splitGeneratedHeading(match[2]);
     if (hashes === 3) {
       currentNode = {
         id: `expand-${nodeId++}`,
         title: title2,
         level: parentLevel + 1,
-        children: []
+        children: [],
+        description
       };
       children.push(currentNode);
     } else if (hashes === 4 && currentNode) {
@@ -9335,11 +10006,25 @@ function parseExpandedContent(markdown, parentLevel) {
         id: `expand-${nodeId++}`,
         title: title2,
         level: parentLevel + 2,
-        children: []
+        children: [],
+        description
       });
     }
   }
   return children;
+}
+function splitGeneratedHeading(raw) {
+  const normalized = raw.replace(/\*\*/g, "").trim();
+  const delimiterMatch = normalized.match(/\s+(?:::|--|—)\s+/);
+  if (!delimiterMatch || delimiterMatch.index === void 0) {
+    return { title: normalized };
+  }
+  const title2 = normalized.slice(0, delimiterMatch.index).trim();
+  const description = normalized.slice(delimiterMatch.index + delimiterMatch[0].length).trim();
+  return {
+    title: title2 || normalized,
+    description: description || void 0
+  };
 }
 ReactDOM.createRoot(document.getElementById("root")).render(
   /* @__PURE__ */ jsxRuntimeExports.jsx(React.StrictMode, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ThemeProvider, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(App, {}) }) })

@@ -3,6 +3,7 @@ export interface MindmapNode {
   title: string;
   level: number;
   children: MindmapNode[];
+  description?: string;
   notes?: string;
   branchColor?: string;
   collapsed?: boolean;
@@ -10,16 +11,36 @@ export interface MindmapNode {
 
 function normalizeLineTitle(line: string): string {
   return line
-    .replace(/^[-*•]\s+/, '')
-    .replace(/^\d+[\).:\-]\s+/, '')
-    .replace(/^#+\s*/, '')
-    .replace(/\*\*/g, '')
+    .replace(/^[-*•]\s+/, "")
+    .replace(/^\d+[\).:\-]\s+/, "")
+    .replace(/^#+\s*/, "")
+    .replace(/\*\*/g, "")
     .trim();
+}
+
+function splitTitleAndDescription(rawTitle: string): {
+  title: string;
+  description?: string;
+} {
+  const normalized = normalizeLineTitle(rawTitle);
+  const delimiterMatch = normalized.match(/\s+(?:::|--|—)\s+/);
+  if (!delimiterMatch || delimiterMatch.index === undefined) {
+    return { title: normalized };
+  }
+
+  const title = normalized.slice(0, delimiterMatch.index).trim();
+  const description = normalized
+    .slice(delimiterMatch.index + delimiterMatch[0].length)
+    .trim();
+  return {
+    title: title || normalized,
+    description: description || undefined,
+  };
 }
 
 function extractHeadingLines(markdown: string): string[] {
   return markdown
-    .split('\n')
+    .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
     .filter((line) => /^(#{1,6})\s+.+$/.test(line));
@@ -27,7 +48,7 @@ function extractHeadingLines(markdown: string): string[] {
 
 function fallbackPlainTextToHeadings(markdown: string): string[] {
   const lines = markdown
-    .split('\n')
+    .split("\n")
     .map((line) => normalizeLineTitle(line))
     .filter(Boolean)
     .filter((line) => !/^```/.test(line));
@@ -59,7 +80,10 @@ function fallbackPlainTextToHeadings(markdown: string): string[] {
  */
 export function parseMarkdownToTree(markdown: string): MindmapNode | null {
   const headingLines = extractHeadingLines(markdown);
-  const lines = headingLines.length > 0 ? headingLines : fallbackPlainTextToHeadings(markdown);
+  const lines =
+    headingLines.length > 0
+      ? headingLines
+      : fallbackPlainTextToHeadings(markdown);
 
   if (lines.length === 0) {
     return null;
@@ -74,7 +98,7 @@ export function parseMarkdownToTree(markdown: string): MindmapNode | null {
     if (!match) continue;
 
     const level = match[1].length;
-    const title = normalizeLineTitle(match[2]);
+    const { title, description } = splitTitleAndDescription(match[2]);
     if (!title) continue;
 
     const node: MindmapNode = {
@@ -82,6 +106,7 @@ export function parseMarkdownToTree(markdown: string): MindmapNode | null {
       title,
       level,
       children: [],
+      description,
     };
 
     if (level === 1) {

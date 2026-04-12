@@ -1,5 +1,6 @@
 export type {
   ArtifactKind,
+  AiProvider,
   BranchBrief,
   BranchBriefArtifact,
   CompressionMapDocument,
@@ -8,5 +9,4 @@ export type {
   SourceDocument,
   StoreMapMeta,
   ThinkingLens,
-} from '../../../shared/contracts';
-
+} from "../../../shared/contracts";

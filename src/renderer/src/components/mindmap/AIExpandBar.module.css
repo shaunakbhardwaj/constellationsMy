@@ -5,15 +5,14 @@
     flex-direction: column;
     gap: 10px;
     padding: 12px 16px;
-    background: linear-gradient(145deg, rgba(25, 25, 35, 0.95), rgba(15, 15, 25, 0.95));
-    border: 1px solid rgba(139, 92, 246, 0.25);
-    border-radius: 24px;
+    background: var(--rail-background);
+    border: 1px solid var(--line);
+    border-radius: 8px;
     box-shadow:
-        0 12px 40px rgba(0, 0, 0, 0.4),
-        0 0 30px rgba(139, 92, 246, 0.1),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        var(--shadow-md),
+        inset 0 1px 0 var(--inner-highlight);
     backdrop-filter: blur(20px);
-    animation: barSlideIn 0.2s ease-out;
+    animation: barSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes barSlideIn {
@@ -37,15 +36,15 @@
     align-items: center;
     gap: 6px;
     padding: 4px 10px;
-    background: rgba(139, 92, 246, 0.15);
-    border-radius: 12px;
+    background: var(--surface-sunken);
+    border-radius: 8px;
     max-width: 200px;
 }
 
 .nodeTitle {
     font-size: 11px;
-    color: rgba(255, 255, 255, 0.8);
-    font-weight: 500;
+    color: var(--foreground-muted);
+    font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -62,17 +61,20 @@
     align-items: center;
     gap: 5px;
     padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
+    background: var(--surface-glass);
+    border: 1px solid var(--line);
+    border-radius: 8px;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition:
+        transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+        background 180ms cubic-bezier(0.16, 1, 0.3, 1),
+        border-color 180ms cubic-bezier(0.16, 1, 0.3, 1);
     white-space: nowrap;
 }
 
 .modeButton:hover:not(:disabled) {
-    background: rgba(139, 92, 246, 0.2);
-    border-color: rgba(139, 92, 246, 0.4);
+    background: var(--surface-hover);
+    border-color: var(--line-strong);
     transform: translateY(-1px);
 }
 
@@ -91,21 +93,21 @@
 
 .modeLabel {
     font-size: 11px;
-    color: rgba(255, 255, 255, 0.7);
-    font-weight: 500;
+    color: var(--foreground-muted);
+    font-weight: 600;
 }
 
 .modeButton:hover .modeLabel {
-    color: #fff;
+    color: var(--foreground);
 }
 
 .modeButtonActive {
-    background: rgba(139, 92, 246, 0.24);
-    border-color: rgba(139, 92, 246, 0.45);
+    background: var(--surface-hover);
+    border-color: var(--line-strong);
 }
 
 .modeButtonActive .modeLabel {
-    color: #fff;
+    color: var(--foreground);
 }
 
 .toggleInput {
@@ -114,25 +116,28 @@
     justify-content: center;
     width: 32px;
     height: 32px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--surface-glass);
+    border: 1px solid var(--line);
     border-radius: 50%;
     cursor: pointer;
-    transition: all 0.15s ease;
-    color: rgba(255, 255, 255, 0.5);
+    transition:
+        background 180ms cubic-bezier(0.16, 1, 0.3, 1),
+        border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+        color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+    color: var(--foreground-dim);
     font-size: 16px;
     font-weight: 300;
 }
 
 .toggleInput:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.08);
-    color: #fff;
+    background: var(--surface-hover);
+    color: var(--foreground);
 }
 
 .toggleInputActive {
-    background: rgba(139, 92, 246, 0.2);
-    border-color: rgba(139, 92, 246, 0.4);
-    color: #fff;
+    background: var(--surface-hover);
+    border-color: var(--line-strong);
+    color: var(--foreground);
 }
 
 .toggleInput:disabled {
@@ -144,7 +149,7 @@
     display: flex;
     gap: 10px;
     align-items: center;
-    animation: inputSlideDown 0.15s ease-out;
+    animation: inputSlideDown 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes inputSlideDown {
@@ -163,23 +168,25 @@
     width: 100%;
     min-width: 300px;
     padding: 10px 14px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    color: #fff;
+    background: var(--input-background);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--foreground);
     font-size: 12px;
     font-family: inherit;
-    transition: all 0.15s ease;
+    transition:
+        border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+        box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .customInput::placeholder {
-    color: rgba(255, 255, 255, 0.3);
+    color: var(--foreground-dim);
 }
 
 .customInput:focus {
     outline: none;
-    border-color: rgba(139, 92, 246, 0.5);
-    box-shadow: 0 0 15px rgba(139, 92, 246, 0.1);
+    border-color: var(--line-strong);
+    box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .customInput:disabled {
@@ -190,22 +197,25 @@
 .expandButton {
     flex-shrink: 0;
     padding: 10px 14px;
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.95), rgba(59, 130, 246, 0.95));
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-radius: 12px;
-    color: white;
+    background: var(--button-background);
+    border: 1px solid var(--button-background);
+    border-radius: 8px;
+    color: var(--button-foreground);
     font-size: 12px;
     font-weight: 700;
     cursor: pointer;
-    transition: transform 0.15s ease, opacity 0.15s ease;
+    transition:
+        transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+        background 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .expandButton:hover:not(:disabled) {
+    background: var(--button-background-hover);
     transform: translateY(-1px);
 }
 
 .expandButton:disabled {
-    opacity: 0.55;
+    opacity: 0.5;
     cursor: not-allowed;
 }
 
@@ -216,18 +226,18 @@
     align-items: center;
     justify-content: center;
     gap: 10px;
-    background: rgba(15, 15, 25, 0.9);
-    border-radius: 24px;
-    color: rgba(255, 255, 255, 0.8);
+    background: var(--rail-background);
+    border-radius: 14px;
+    color: var(--foreground-muted);
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .spinner {
     width: 16px;
     height: 16px;
-    border: 2px solid rgba(139, 92, 246, 0.3);
-    border-top-color: #8b5cf6;
+    border: 2px solid var(--line);
+    border-top-color: var(--foreground);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }

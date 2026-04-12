@@ -6,6 +6,9 @@ const api = {
     ingestText: (params) => electron.ipcRenderer.invoke("source:ingest-text", params),
     ingestPdf: (params) => electron.ipcRenderer.invoke("source:ingest-pdf", params)
   },
+  ai: {
+    listOllamaModels: (params) => electron.ipcRenderer.invoke("ai:list-ollama-models", params)
+  },
   map: {
     generateCompression: (params) => electron.ipcRenderer.invoke("map:generate-compression", params),
     expandNodeWithLens: (params) => electron.ipcRenderer.invoke("map:expand-node-with-lens", params)

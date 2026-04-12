@@ -2,6 +2,7 @@
 const electron = require("electron");
 const path = require("path");
 const utils = require("@electron-toolkit/utils");
+const child_process = require("child_process");
 const fs$1 = require("fs");
 const pdfParse = require("pdf-parse");
 const fs = require("fs/promises");
@@ -17,7 +18,10 @@ async function readJsonFile(filePath) {
 async function writeJsonAtomic(filePath, value) {
   const dir = path.dirname(filePath);
   const base = path.basename(filePath);
-  const tmp = path.join(dir, `.${base}.tmp-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const tmp = path.join(
+    dir,
+    `.${base}.tmp-${Date.now()}-${Math.random().toString(16).slice(2)}`
+  );
   await fs.writeFile(tmp, JSON.stringify(value, null, 2), "utf-8");
   await fs.rename(tmp, filePath);
 }
@@ -63,7 +67,12 @@ class MemoryStore {
         try {
           await fs.access(this.indexPath);
         } catch {
-          const empty = { version: 2, sources: [], maps: [], artifacts: [] };
+          const empty = {
+            version: 2,
+            sources: [],
+            maps: [],
+            artifacts: []
+          };
           await writeJsonAtomic(this.indexPath, empty);
         }
       })();
@@ -78,24 +87,39 @@ class MemoryStore {
         return index;
       }
       if (index?.version === 1 && Array.isArray(index.documents)) {
-        const migrated = await this.migrateLegacyIndex(index.documents);
+        const migrated = await this.migrateLegacyIndex(
+          index.documents
+        );
         await writeJsonAtomic(this.indexPath, migrated);
         return migrated;
       }
       throw new Error("Invalid memory index format");
     } catch {
-      const corruptPath = path.join(this.baseDir, `index.corrupt-${Date.now()}.json`);
+      const corruptPath = path.join(
+        this.baseDir,
+        `index.corrupt-${Date.now()}.json`
+      );
       try {
         await fs.rename(this.indexPath, corruptPath);
       } catch {
       }
-      const empty = { version: 2, sources: [], maps: [], artifacts: [] };
+      const empty = {
+        version: 2,
+        sources: [],
+        maps: [],
+        artifacts: []
+      };
       await writeJsonAtomic(this.indexPath, empty);
       return empty;
     }
   }
   async migrateLegacyIndex(docMetas) {
-    const next = { version: 2, sources: [], maps: [], artifacts: [] };
+    const next = {
+      version: 2,
+      sources: [],
+      maps: [],
+      artifacts: []
+    };
     for (const meta of docMetas) {
       const id = String(meta.id);
       const docPath = path.join(this.legacyDocsDir, `${id}.json`);
@@ -112,7 +136,10 @@ class MemoryStore {
           createdAt: legacy.createdAt || now,
           updatedAt: now
         };
-        await writeJsonAtomic(path.join(this.sourcesDir, `${sourceId}.json`), sourceDoc);
+        await writeJsonAtomic(
+          path.join(this.sourcesDir, `${sourceId}.json`),
+          sourceDoc
+        );
         next.sources.push({
           id: sourceDoc.id,
           title: sourceDoc.title,
@@ -128,13 +155,17 @@ class MemoryStore {
           root: legacy.root,
           createdAt: legacy.createdAt || now,
           updatedAt: now,
+          provider: void 0,
           model: legacy.model,
           selectedNodeIds: [],
           selectedPathOrder: [],
           legacyDocumentMode: legacy.documentMode,
           lastUsedLens: "default"
         };
-        await writeJsonAtomic(path.join(this.mapsDir, `${mapDoc.id}.json`), mapDoc);
+        await writeJsonAtomic(
+          path.join(this.mapsDir, `${mapDoc.id}.json`),
+          mapDoc
+        );
         next.maps.push(this.toMapMeta(mapDoc));
       } catch {
       }
@@ -165,6 +196,7 @@ class MemoryStore {
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
       model: doc.model,
+      provider: doc.provider,
       lastUsedLens: doc.lastUsedLens,
       selectedNodeIds: doc.selectedNodeIds ?? [],
       selectedPathOrder: doc.selectedPathOrder ?? [],
@@ -226,6 +258,7 @@ class MemoryStore {
         root: input.root,
         createdAt: now,
         updatedAt: now,
+        provider: input.provider,
         model: input.model,
         lastUsedLens: input.lastUsedLens ?? "default",
         selectedNodeIds: input.selectedNodeIds ?? [],
@@ -234,7 +267,10 @@ class MemoryStore {
       };
       await writeJsonAtomic(this.mapPath(mapDoc.id), mapDoc);
       const meta = this.toMapMeta(mapDoc);
-      index.maps = [meta, ...index.maps.filter((entry) => entry.id !== meta.id)];
+      index.maps = [
+        meta,
+        ...index.maps.filter((entry) => entry.id !== meta.id)
+      ];
       await this.writeIndex(index);
       return meta;
     });
@@ -242,11 +278,14 @@ class MemoryStore {
   async updateMap(input) {
     return this.runExclusive(async () => {
       const index = await this.readIndex();
-      const existing = await readJsonFile(this.mapPath(input.id));
+      const existing = await readJsonFile(
+        this.mapPath(input.id)
+      );
       const updated = {
         ...existing,
         title: input.title ?? existing.title,
         root: input.root ?? existing.root,
+        provider: input.provider ?? existing.provider,
         model: input.model ?? existing.model,
         lastUsedLens: input.lastUsedLens ?? existing.lastUsedLens ?? "default",
         selectedNodeIds: input.selectedNodeIds ?? existing.selectedNodeIds ?? [],
@@ -255,7 +294,10 @@ class MemoryStore {
       };
       await writeJsonAtomic(this.mapPath(updated.id), updated);
       const meta = this.toMapMeta(updated);
-      index.maps = [meta, ...index.maps.filter((entry) => entry.id !== meta.id)];
+      index.maps = [
+        meta,
+        ...index.maps.filter((entry) => entry.id !== meta.id)
+      ];
       await this.writeIndex(index);
       return meta;
     });
@@ -263,9 +305,15 @@ class MemoryStore {
   async listArtifactsByMap(compressionMapId) {
     return this.runExclusive(async () => {
       const index = await this.readIndex();
-      const related = index.artifacts.filter((artifact) => artifact.compressionMapId === compressionMapId);
+      const related = index.artifacts.filter(
+        (artifact) => artifact.compressionMapId === compressionMapId
+      );
       const loaded = await Promise.all(
-        related.map((artifact) => readJsonFile(this.artifactPath(artifact.id)).catch(() => null))
+        related.map(
+          (artifact) => readJsonFile(this.artifactPath(artifact.id)).catch(
+            () => null
+          )
+        )
       );
       return loaded.filter((artifact) => Boolean(artifact)).sort((a, b) => b.updatedAt - a.updatedAt);
     });
@@ -320,7 +368,9 @@ class MemoryStore {
     return this.runExclusive(async () => {
       const index = await this.readIndex();
       index.maps = index.maps.filter((entry) => entry.id !== id);
-      index.artifacts = index.artifacts.filter((entry) => entry.compressionMapId !== id);
+      index.artifacts = index.artifacts.filter(
+        (entry) => entry.compressionMapId !== id
+      );
       await this.writeIndex(index);
       try {
         await fs.unlink(this.mapPath(id));
@@ -437,11 +487,13 @@ class AppLogger {
   }
 }
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
+const DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434";
 let processLoggingAttached = false;
 function loadPrompt(name) {
   const isProd = process.env.NODE_ENV === "production";
   const resourcesPath = isProd ? process.resourcesPath : path.join(__dirname, "../../resources");
-  const promptPath = path.join(resourcesPath, "prompts", name);
+  const promptName = name.replace(/^prompts\//, "");
+  const promptPath = path.join(resourcesPath, "prompts", promptName);
   try {
     return fs$1.readFileSync(promptPath, "utf-8");
   } catch {
@@ -455,35 +507,57 @@ function normalizeTitle(text, fallback) {
 function stripCodeFences(raw) {
   return raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
 }
-async function callOpenRouter(params) {
+function normalizeOllamaBaseUrl(baseUrl) {
+  return (baseUrl || DEFAULT_OLLAMA_BASE_URL).replace(/\/+$/, "");
+}
+function redactParams(params) {
+  return {
+    ...params,
+    apiKey: params.apiKey ? "[redacted]" : params.apiKey
+  };
+}
+async function callLLM(params) {
   const requestId = `llm-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+  const provider = params.provider || "openrouter";
+  const isOllama = provider === "ollama";
+  const url = isOllama ? `${normalizeOllamaBaseUrl(params.ollamaBaseUrl)}/v1/chat/completions` : OPENROUTER_API_URL;
+  if (!isOllama && !params.apiKey) {
+    throw new Error("OpenRouter API key is required for OpenRouter models.");
+  }
   try {
-    const response = await fetch(OPENROUTER_API_URL, {
+    const headers = {
+      "Content-Type": "application/json"
+    };
+    if (!isOllama) {
+      headers.Authorization = `Bearer ${params.apiKey}`;
+      headers["HTTP-Referer"] = "https://flows-app.vercel.app";
+      headers["X-Title"] = "Flows - Compression Routing";
+    }
+    const body = {
+      model: params.model,
+      messages: [
+        { role: "system", content: params.systemPrompt },
+        { role: "user", content: params.userPrompt }
+      ],
+      temperature: params.temperature ?? 0.4,
+      max_tokens: params.maxTokens ?? 2200,
+      stream: false
+    };
+    if (params.responseFormat) {
+      body.response_format = params.responseFormat;
+    }
+    const response = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${params.apiKey}`,
-        "HTTP-Referer": "https://flows-app.vercel.app",
-        "X-Title": "Flows - Compression Routing"
-      },
-      body: JSON.stringify({
-        model: params.model,
-        messages: [
-          { role: "system", content: params.systemPrompt },
-          { role: "user", content: params.userPrompt }
-        ],
-        temperature: params.temperature ?? 0.4,
-        max_tokens: params.maxTokens ?? 2200,
-        response_format: params.responseFormat
-      })
+      headers,
+      body: JSON.stringify(body)
     });
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      const message = error.error?.message || `API error: ${response.status}`;
+      const message = error.error?.message || `${provider} API error: ${response.status}`;
       await params.logger.logLLMExchange({
         requestId,
         operation: params.operation,
-        model: params.model,
+        model: `${provider}:${params.model}`,
         systemPrompt: params.systemPrompt,
         userPrompt: params.userPrompt,
         temperature: params.temperature ?? 0.4,
@@ -500,7 +574,7 @@ async function callOpenRouter(params) {
       await params.logger.logLLMExchange({
         requestId,
         operation: params.operation,
-        model: data.model || params.model,
+        model: `${provider}:${data.model || params.model}`,
         systemPrompt: params.systemPrompt,
         userPrompt: params.userPrompt,
         temperature: params.temperature ?? 0.4,
@@ -514,7 +588,7 @@ async function callOpenRouter(params) {
     await params.logger.logLLMExchange({
       requestId,
       operation: params.operation,
-      model: data.model || params.model,
+      model: `${provider}:${data.model || params.model}`,
       systemPrompt: params.systemPrompt,
       userPrompt: params.userPrompt,
       temperature: params.temperature ?? 0.4,
@@ -523,13 +597,13 @@ async function callOpenRouter(params) {
       status: "success",
       content
     });
-    return { content, model: data.model || params.model, requestId };
+    return { content, model: data.model || params.model, provider, requestId };
   } catch (error) {
     if (error instanceof Error && !/API error|Model returned empty content/.test(error.message)) {
       await params.logger.logLLMExchange({
         requestId,
         operation: params.operation,
-        model: params.model,
+        model: `${provider}:${params.model}`,
         systemPrompt: params.systemPrompt,
         userPrompt: params.userPrompt,
         temperature: params.temperature ?? 0.4,
@@ -578,6 +652,7 @@ function collectNodeDetails(root, selectedNodeIds) {
       details.push({
         id: node.id,
         title: node.title,
+        description: node.description,
         path: nextTrail.join(" > "),
         notes: node.notes
       });
@@ -593,7 +668,9 @@ function fallbackBranchBrief(title, nodeDetails) {
   return {
     title,
     objective: `Advance the "${title}" branch into concrete next steps.`,
-    summary: nodeDetails.map((node) => node.path).join(" | ").slice(0, 400),
+    summary: nodeDetails.map(
+      (node) => node.description ? `${node.path}: ${node.description}` : node.path
+    ).join(" | ").slice(0, 400),
     keyPoints: nodeDetails.slice(0, 5).map((node) => node.title),
     risks: nodeDetails.filter((node) => /risk|block|issue|concern/i.test(node.title)).map((node) => node.title).slice(0, 4),
     openQuestions: nodeDetails.filter((node) => /\?$/.test(node.title)).map((node) => node.title).slice(0, 4),
@@ -627,6 +704,90 @@ function formatCodexPayload(artifact) {
   ];
   return lines.join("\n");
 }
+function getCodexEnv() {
+  const allowedKeys = [
+    "PATH",
+    "HOME",
+    "USER",
+    "LOGNAME",
+    "SHELL",
+    "TMPDIR",
+    "CODEX_HOME",
+    "XDG_CONFIG_HOME"
+  ];
+  return Object.fromEntries(
+    allowedKeys.map((key) => [key, process.env[key]]).filter(
+      (entry) => typeof entry[1] === "string"
+    )
+  );
+}
+function runCodexExec(params) {
+  const args = [
+    "exec",
+    "--full-auto",
+    "--sandbox",
+    "workspace-write",
+    "-C",
+    params.cwd,
+    "--output-last-message",
+    params.outputPath,
+    "-"
+  ];
+  const startedAt = Date.now();
+  return new Promise((resolve) => {
+    const child = child_process.spawn("codex", args, {
+      cwd: params.cwd,
+      env: getCodexEnv(),
+      stdio: ["pipe", "pipe", "pipe"],
+      shell: false
+    });
+    let stdout = "";
+    let stderr = "";
+    let settled = false;
+    const timeout = windowlessSetTimeout(
+      () => {
+        if (settled) return;
+        stderr += "\nCodex exec timed out.";
+        child.kill("SIGTERM");
+      },
+      params.timeoutMs ?? 15 * 60 * 1e3
+    );
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+      if (stdout.length > 3e4) stdout = stdout.slice(-3e4);
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+      if (stderr.length > 3e4) stderr = stderr.slice(-3e4);
+    });
+    child.on("error", (error) => {
+      stderr += `
+${error.message}`;
+    });
+    child.on("close", (exitCode) => {
+      settled = true;
+      clearTimeout(timeout);
+      let finalMessage = "";
+      try {
+        finalMessage = fs$1.readFileSync(params.outputPath, "utf-8");
+      } catch {
+      }
+      resolve({
+        command: ["codex", ...args],
+        cwd: params.cwd,
+        exitCode,
+        stdout: finalMessage || stdout,
+        stderr,
+        startedAt,
+        finishedAt: Date.now()
+      });
+    });
+    child.stdin.end(params.prompt);
+  });
+}
+function windowlessSetTimeout(callback, ms) {
+  return setTimeout(callback, ms);
+}
 function registerIpcHandlers() {
   const userDataMemoryDir = path.join(electron.app.getPath("userData"), "memory");
   const repoMemoryDir = path.join(process.cwd(), ".flows-memory");
@@ -645,6 +806,30 @@ function registerIpcHandlers() {
       void logger.error("main", "Unhandled rejection", { reason });
     });
   }
+  electron.ipcMain.handle("ai:list-ollama-models", async (_, params = {}) => {
+    const { baseUrl } = params;
+    const ollamaBaseUrl = normalizeOllamaBaseUrl(baseUrl);
+    try {
+      const response = await fetch(`${ollamaBaseUrl}/api/tags`);
+      if (!response.ok) {
+        throw new Error(`Ollama model list error: ${response.status}`);
+      }
+      const data = await response.json();
+      const models = Array.isArray(data.models) ? data.models.map((model) => ({
+        id: String(model.name || "").trim(),
+        name: String(model.name || "").trim(),
+        size: model.size,
+        modifiedAt: model.modified_at
+      })).filter((model) => model.id) : [];
+      return { success: true, models };
+    } catch (error) {
+      void logger.warn("ai", "Failed to list Ollama models", {
+        error,
+        baseUrl: ollamaBaseUrl
+      });
+      return { success: false, error: error.message, models: [] };
+    }
+  });
   electron.ipcMain.handle("source:ingest-text", async (_, params) => {
     try {
       const { inputKind, text, prompt, title } = params;
@@ -661,14 +846,19 @@ function registerIpcHandlers() {
       });
       return { success: true, source };
     } catch (error) {
-      void logger.error("source", "Failed to ingest text source", { error, params });
+      void logger.error("source", "Failed to ingest text source", {
+        error,
+        params
+      });
       return { success: false, error: error.message };
     }
   });
   electron.ipcMain.handle("source:ingest-pdf", async (_, params) => {
     try {
       const { name, bytes } = params;
-      const buffer = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes));
+      const buffer = Buffer.isBuffer(bytes) ? bytes : Buffer.from(
+        bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
+      );
       const parser = new pdfParse.PDFParse({ data: buffer });
       const parsed = await parser.getText();
       await parser.destroy().catch(() => void 0);
@@ -693,13 +883,23 @@ function registerIpcHandlers() {
       });
       return { success: true, source };
     } catch (error) {
-      void logger.error("source", "Failed to ingest PDF source", { error, params });
+      void logger.error("source", "Failed to ingest PDF source", {
+        error,
+        params
+      });
       return { success: false, error: error.message };
     }
   });
   electron.ipcMain.handle("map:generate-compression", async (_, params) => {
     try {
-      const { sourceText, prompt, apiKey, model } = params;
+      const {
+        sourceText,
+        prompt,
+        apiKey,
+        model,
+        provider = "openrouter",
+        ollamaBaseUrl
+      } = params;
       const systemPrompt = loadPrompt("prompts/compression.md");
       const userPrompt = [
         prompt ? `Prompt:
@@ -708,11 +908,13 @@ ${prompt}
         "Source content:",
         sourceText
       ].filter(Boolean).join("\n\n");
-      const result = await callOpenRouter({
+      const result = await callLLM({
         logger,
         operation: "compression_map",
+        provider,
         apiKey,
         model,
+        ollamaBaseUrl,
         systemPrompt,
         userPrompt,
         temperature: 0.35,
@@ -720,17 +922,38 @@ ${prompt}
       });
       void logger.info("map", "Generated compression response", {
         sourceTextLength: sourceText.length,
+        provider: result.provider,
         model: result.model
       });
-      return { success: true, markdown: result.content, model: result.model };
+      return {
+        success: true,
+        markdown: result.content,
+        provider: result.provider,
+        model: result.model
+      };
     } catch (error) {
-      void logger.error("map", "Failed to generate compression response", { error, params });
+      void logger.error("map", "Failed to generate compression response", {
+        error,
+        params: redactParams(params)
+      });
       return { success: false, error: error.message };
     }
   });
   electron.ipcMain.handle("map:expand-node-with-lens", async (_, params) => {
     try {
-      const { topic, context, apiKey, model, rootTopic, siblings = [], customInstruction, lens = "default", sourceKind } = params;
+      const {
+        topic,
+        context,
+        apiKey,
+        model,
+        provider = "openrouter",
+        ollamaBaseUrl,
+        rootTopic,
+        siblings = [],
+        customInstruction,
+        lens = "default",
+        sourceKind
+      } = params;
       const systemPrompt = getExpandPromptForLens(lens);
       let userPrompt = "";
       if (rootTopic) userPrompt += `Map topic: "${rootTopic}"
@@ -739,18 +962,22 @@ ${prompt}
 `;
       if (context) userPrompt += `Path: ${context}
 `;
-      if (siblings.length > 0) userPrompt += `Sibling topics (avoid duplicates): ${siblings.join(", ")}
+      if (siblings.length > 0)
+        userPrompt += `Sibling topics (avoid duplicates): ${siblings.join(", ")}
 `;
       userPrompt += `
 Expand: "${topic}"`;
-      if (customInstruction) userPrompt += `
+      if (customInstruction)
+        userPrompt += `
 
 User guidance: ${customInstruction}`;
-      const result = await callOpenRouter({
+      const result = await callLLM({
         logger,
         operation: `expand_${lens}`,
+        provider,
         apiKey,
         model,
+        ollamaBaseUrl,
         systemPrompt,
         userPrompt,
         temperature: 0.45,
@@ -763,21 +990,34 @@ User guidance: ${customInstruction}`;
       });
       return { success: true, markdown: result.content, lens };
     } catch (error) {
-      void logger.error("map", "Failed to expand node with lens", { error, params });
+      void logger.error("map", "Failed to expand node with lens", {
+        error,
+        params: redactParams(params)
+      });
       return { success: false, error: error.message };
     }
   });
   electron.ipcMain.handle("artifact:create-branch-brief", async (_, params) => {
     try {
-      const { compressionMapId, selectedNodeIds, selectedPathOrder, apiKey, model } = params;
+      const {
+        compressionMapId,
+        selectedNodeIds,
+        selectedPathOrder,
+        apiKey,
+        model,
+        provider = "openrouter",
+        ollamaBaseUrl
+      } = params;
       const map = await memoryStore.getMap(compressionMapId);
       const source = await memoryStore.getSource(map.sourceDocumentId);
       const nodeDetails = collectNodeDetails(map.root, selectedNodeIds);
       if (nodeDetails.length === 0) {
-        throw new Error("Select at least one branch before generating a brief.");
+        throw new Error(
+          "Select at least one branch before generating a brief."
+        );
       }
       let brief = fallbackBranchBrief(nodeDetails[0].title, nodeDetails);
-      if (apiKey && model) {
+      if (model && (provider === "ollama" || apiKey)) {
         try {
           const systemPrompt = loadPrompt("prompts/branch-brief.md");
           const userPrompt = JSON.stringify(
@@ -790,11 +1030,13 @@ User guidance: ${customInstruction}`;
             null,
             2
           );
-          const result = await callOpenRouter({
+          const result = await callLLM({
             logger,
             operation: "branch_brief",
+            provider,
             apiKey,
             model,
+            ollamaBaseUrl,
             systemPrompt,
             userPrompt,
             temperature: 0.25,
@@ -808,10 +1050,14 @@ User guidance: ${customInstruction}`;
             sourceNodeRefs: Array.isArray(parsed.sourceNodeRefs) && parsed.sourceNodeRefs.length ? parsed.sourceNodeRefs : nodeDetails.map((node) => node.id)
           };
         } catch (error) {
-          void logger.warn("artifact", "Branch brief generation fell back to deterministic serializer", {
-            error,
-            compressionMapId
-          });
+          void logger.warn(
+            "artifact",
+            "Branch brief generation fell back to deterministic serializer",
+            {
+              error,
+              compressionMapId
+            }
+          );
         }
       }
       const artifact = await memoryStore.createArtifact({
@@ -829,13 +1075,20 @@ User guidance: ${customInstruction}`;
       });
       return { success: true, artifact };
     } catch (error) {
-      void logger.error("artifact", "Failed to create branch brief", { error, params });
+      void logger.error("artifact", "Failed to create branch brief", {
+        error,
+        params: redactParams(params)
+      });
       return { success: false, error: error.message };
     }
   });
   electron.ipcMain.handle("handoff:dispatch-to-codex", async (_, params) => {
     try {
-      const { branchBriefId, compressionMapId } = params;
+      const {
+        branchBriefId,
+        compressionMapId,
+        transport = "clipboard"
+      } = params;
       const artifacts = await memoryStore.listArtifactsByMap(compressionMapId);
       const briefArtifact = artifacts.find(
         (artifact) => artifact.id === branchBriefId && artifact.kind === "branch_brief"
@@ -863,27 +1116,71 @@ User guidance: ${customInstruction}`;
         target: "codex",
         payload,
         status: "pending",
-        transport: "clipboard"
+        transport
       });
-      electron.clipboard.writeText(formatCodexPayload(handoff));
+      const formattedPayload = formatCodexPayload(handoff);
+      if (transport === "codex_exec") {
+        handoff = await memoryStore.updateArtifact({
+          ...handoff,
+          status: "running"
+        });
+        const codexOutputDir = path.join(memoryDir, "codex-runs");
+        fs$1.mkdirSync(codexOutputDir, { recursive: true });
+        const outputPath = path.join(codexOutputDir, `${handoff.id}.md`);
+        const codexExec = await runCodexExec({
+          prompt: formattedPayload,
+          cwd: process.cwd(),
+          outputPath
+        });
+        handoff = await memoryStore.updateArtifact({
+          ...handoff,
+          status: codexExec.exitCode === 0 ? "completed" : "failed",
+          codexExec
+        });
+        void logger.info("handoff", "Ran Codex exec for branch brief", {
+          handoffId: handoff.id,
+          branchBriefId,
+          compressionMapId,
+          exitCode: codexExec.exitCode
+        });
+        return {
+          success: true,
+          artifact: handoff,
+          ranCodexExec: true,
+          error: codexExec.exitCode === 0 ? void 0 : codexExec.stderr || "Codex exec failed"
+        };
+      }
+      electron.clipboard.writeText(formattedPayload);
       handoff = await memoryStore.updateArtifact({
         ...handoff,
         status: "sent"
       });
-      void logger.info("handoff", "Dispatched branch brief to Codex clipboard", {
-        handoffId: handoff.id,
-        branchBriefId,
-        compressionMapId
-      });
+      void logger.info(
+        "handoff",
+        "Dispatched branch brief to Codex clipboard",
+        {
+          handoffId: handoff.id,
+          branchBriefId,
+          compressionMapId
+        }
+      );
       return { success: true, artifact: handoff, copied: true };
     } catch (error) {
-      void logger.error("handoff", "Failed to dispatch branch brief to Codex", { error, params });
+      void logger.error("handoff", "Failed to dispatch branch brief to Codex", {
+        error,
+        params
+      });
       return { success: false, error: error.message };
     }
   });
   electron.ipcMain.handle("log:event", async (_, params) => {
     try {
-      const { level = "info", scope = "renderer", message, meta } = params;
+      const {
+        level = "info",
+        scope = "renderer",
+        message,
+        meta
+      } = params;
       if (level === "error") {
         await logger.error(scope, message, meta);
       } else if (level === "warn") {
@@ -912,15 +1209,21 @@ User guidance: ${customInstruction}`;
       return { success: false, error: error.message };
     }
   });
-  electron.ipcMain.handle("artifact:list-by-document", async (_, { compressionMapId }) => {
-    try {
-      const artifacts = await memoryStore.listArtifactsByMap(compressionMapId);
-      return { success: true, artifacts };
-    } catch (error) {
-      void logger.error("artifact", "Failed to list artifacts by document", { error, compressionMapId });
-      return { success: false, error: error.message };
+  electron.ipcMain.handle(
+    "artifact:list-by-document",
+    async (_, { compressionMapId }) => {
+      try {
+        const artifacts = await memoryStore.listArtifactsByMap(compressionMapId);
+        return { success: true, artifacts };
+      } catch (error) {
+        void logger.error("artifact", "Failed to list artifacts by document", {
+          error,
+          compressionMapId
+        });
+        return { success: false, error: error.message };
+      }
     }
-  });
+  );
   electron.ipcMain.handle("memory:list", async () => {
     try {
       const documents = await memoryStore.listMaps();
@@ -943,7 +1246,10 @@ User guidance: ${customInstruction}`;
   electron.ipcMain.handle("memory:create", async (_, params) => {
     try {
       const document = await memoryStore.createMap(params);
-      void logger.info("memory", "Created compression map", { id: document.id, title: document.title });
+      void logger.info("memory", "Created compression map", {
+        id: document.id,
+        title: document.title
+      });
       return { success: true, document };
     } catch (error) {
       void logger.error("memory", "Failed to create map", { error, params });
@@ -953,7 +1259,10 @@ User guidance: ${customInstruction}`;
   electron.ipcMain.handle("memory:update", async (_, params) => {
     try {
       const document = await memoryStore.updateMap(params);
-      void logger.info("memory", "Updated compression map", { id: document.id, title: document.title });
+      void logger.info("memory", "Updated compression map", {
+        id: document.id,
+        title: document.title
+      });
       return { success: true, document };
     } catch (error) {
       void logger.error("memory", "Failed to update map", { error, params });

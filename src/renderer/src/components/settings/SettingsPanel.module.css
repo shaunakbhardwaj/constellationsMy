@@ -1,201 +1,237 @@
 .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(13, 13, 15, 0.85);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    animation: fadeIn 0.25s ease-out;
+  position: fixed;
+  inset: 0;
+  background: rgba(13, 13, 15, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.25s ease-out;
 }
 
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
+  from {
+    opacity: 0;
+  }
 
-    to {
-        opacity: 1;
-    }
+  to {
+    opacity: 1;
+  }
 }
 
 .panel {
-    width: 100%;
-    max-width: 440px;
-    background: var(--background-elevated);
-    border: 1px solid var(--glass-border);
-    border-radius: 24px;
-    overflow: hidden;
-    animation: slideUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  width: 100%;
+  max-width: 440px;
+  background: var(--background-elevated);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  overflow: hidden;
+  animation: slideUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @keyframes slideUp {
-    from {
-        opacity: 0;
-        transform: translateY(30px) scale(0.96);
-    }
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.96);
+  }
 
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 24px 28px;
-    border-bottom: 1px solid var(--glass-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 28px;
+  border-bottom: 1px solid var(--glass-border);
 }
 
 .header h2 {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--foreground);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--foreground);
 }
 
 .closeButton {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    background: transparent;
-    border: none;
-    border-radius: 10px;
-    color: var(--foreground-dim);
-    cursor: pointer;
-    transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  color: var(--foreground-dim);
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .closeButton:hover {
-    background: var(--glass-bg-hover);
-    color: var(--foreground);
-    transform: rotate(90deg);
+  background: var(--glass-bg-hover);
+  color: var(--foreground);
+  transform: rotate(90deg);
 }
 
 .content {
-    padding: 28px;
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
 .field {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .field label {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--foreground-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--foreground-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .inputWrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .input {
-    width: 100%;
-    padding: 16px 18px;
-    padding-right: 48px;
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    border-radius: 12px;
-    color: var(--foreground);
-    font-size: 14px;
-    transition: all 0.2s ease;
+  width: 100%;
+  padding: 16px 18px;
+  padding-right: 48px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  color: var(--foreground);
+  font-size: 14px;
+  transition: all 0.2s ease;
 }
 
 .input:focus {
-    border-color: var(--glass-border-hover);
-    background: var(--glass-bg-hover);
-    box-shadow: 0 0 0 4px var(--accent-glow);
+  border-color: var(--glass-border-hover);
+  background: var(--glass-bg-hover);
+  box-shadow: 0 0 0 4px var(--accent-glow);
 }
 
 .input::placeholder {
-    color: var(--foreground-dim);
+  color: var(--foreground-dim);
 }
 
 .toggleButton {
-    position: absolute;
-    right: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    background: transparent;
-    border: none;
-    border-radius: 8px;
-    color: var(--foreground-dim);
-    cursor: pointer;
-    transition: all 0.15s ease;
+  position: absolute;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--foreground-dim);
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .toggleButton:hover {
-    color: var(--foreground);
-    background: var(--glass-bg-hover);
+  color: var(--foreground);
+  background: var(--glass-bg-hover);
 }
 
 .helpLink {
-    font-size: 12px;
-    color: var(--foreground-muted);
-    text-decoration: underline;
-    text-decoration-color: var(--glass-border);
-    text-underline-offset: 3px;
-    transition: all 0.15s ease;
+  font-size: 12px;
+  color: var(--foreground-muted);
+  text-decoration: underline;
+  text-decoration-color: var(--glass-border);
+  text-underline-offset: 3px;
+  transition: all 0.15s ease;
 }
 
 .helpLink:hover {
-    color: var(--foreground);
+  color: var(--foreground);
+}
+
+.helpText {
+  margin: 0;
+  color: var(--foreground-dim);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.errorText {
+  margin: 0;
+  color: #fca5a5;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.inlineButton {
+  align-self: flex-start;
+  padding: 10px 14px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  color: var(--foreground-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.inlineButton:hover:not(:disabled) {
+  background: var(--glass-bg-hover);
+  color: var(--foreground);
+}
+
+.inlineButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .select {
-    width: 100%;
-    padding: 16px 18px;
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    border-radius: 12px;
-    color: var(--foreground);
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2.5 4.5L6 8L9.5 4.5' stroke='%23888' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 16px center;
-    padding-right: 40px;
+  width: 100%;
+  padding: 16px 18px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  color: var(--foreground);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2.5 4.5L6 8L9.5 4.5' stroke='%23888' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  padding-right: 40px;
 }
 
 .select:focus {
-    border-color: var(--glass-border-hover);
-    background-color: var(--glass-bg-hover);
-    box-shadow: 0 0 0 4px var(--accent-glow);
+  border-color: var(--glass-border-hover);
+  background-color: var(--glass-bg-hover);
+  box-shadow: 0 0 0 4px var(--accent-glow);
 }
 
 .select option {
-    background: var(--background-elevated);
-    color: var(--foreground);
+  background: var(--background-elevated);
+  color: var(--foreground);
 }
 
 .footer {
-    padding: 18px 28px;
-    border-top: 1px solid var(--glass-border);
-    background: var(--glass-bg);
+  padding: 18px 28px;
+  border-top: 1px solid var(--glass-border);
+  background: var(--glass-bg);
 }
 
 .note {
-    font-size: 12px;
-    color: var(--foreground-dim);
-    text-align: center;
+  font-size: 12px;
+  color: var(--foreground-dim);
+  text-align: center;
 }

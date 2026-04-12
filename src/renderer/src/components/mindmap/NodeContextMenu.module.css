@@ -2,22 +2,21 @@
     position: fixed;
     z-index: 2000;
     min-width: 200px;
-    padding: 12px 8px;
-    background: var(--background-card);
+    padding: 8px 6px;
+    background: var(--rail-background);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border: 1px solid var(--glass-border);
-    border-radius: 16px;
-    box-shadow:
-        0 10px 40px rgba(13, 13, 15, 0.5),
-        0 0 1px var(--glass-border);
-    animation: menuAppear 0.15s ease-out;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: var(--shadow-md);
+    animation: menuAppear 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    transform-origin: left top;
 }
 
 @keyframes menuAppear {
     from {
         opacity: 0;
-        transform: scale(0.9) translateY(-8px);
+        transform: scale(0.95) translateY(-6px);
     }
 
     to {
@@ -30,23 +29,25 @@
 .colorRow {
     display: flex;
     justify-content: center;
-    gap: 8px;
-    padding: 8px 12px;
+    gap: 6px;
+    padding: 6px 10px;
 }
 
 .colorButton {
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
     border: 2px solid transparent;
     cursor: pointer;
-    transition: all 0.15s ease;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    transition:
+        transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+        border-color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
 .colorButton:hover {
     transform: scale(1.15);
-    border-color: white;
+    border-color: var(--foreground);
 }
 
 .colorButton:active {
@@ -56,42 +57,45 @@
 /* Divider */
 .divider {
     height: 1px;
-    margin: 8px 12px;
-    background: var(--glass-border);
+    margin: 4px 10px;
+    background: var(--line);
 }
 
 /* Menu items */
 .menuItem {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     width: 100%;
-    padding: 10px 16px;
+    padding: 8px 12px;
     background: transparent;
     border: none;
-    border-radius: 8px;
+    border-radius: 6px;
     color: var(--foreground);
-    font-size: 14px;
+    font-size: 13px;
+    font-weight: 560;
     text-align: left;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition:
+        background 150ms cubic-bezier(0.16, 1, 0.3, 1),
+        color 150ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .menuItem:hover {
-    background: var(--glass-bg-hover);
+    background: var(--surface-hover);
 }
 
 .menuItem:active {
-    background: var(--glass-bg-hover);
+    background: var(--surface-hover);
 }
 
 .menuIcon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 20px;
-    height: 20px;
-    color: var(--foreground-muted);
+    width: 18px;
+    height: 18px;
+    color: var(--foreground-dim);
     flex-shrink: 0;
 }
 
@@ -109,27 +113,27 @@
     justify-content: center;
     width: 18px;
     height: 18px;
-    background: var(--accent-primary);
+    background: var(--button-background);
     border-radius: 50%;
     font-size: 10px;
-    color: white;
+    color: var(--button-foreground);
 }
 
 /* Delete item special styling */
 .deleteItem {
-    color: #f87171;
+    color: var(--danger-foreground);
 }
 
 .deleteItem .menuIcon {
-    color: #f87171;
+    color: var(--danger-foreground);
 }
 
 .deleteItem:hover {
-    background: rgba(248, 113, 113, 0.15);
+    background: var(--danger-background);
 }
 
 .deleteItem:hover .menuIcon {
-    color: #ef4444;
+    color: var(--danger-foreground);
 }
 
 /* Disabled state */
@@ -143,16 +147,18 @@
 }
 
 .disabled:hover .menuIcon {
-    color: #f87171;
+    color: var(--danger-foreground);
 }
 
 /* Keyboard shortcut hints */
 .shortcut {
-    font-size: 11px;
-    color: var(--foreground-muted);
-    background: rgba(255, 255, 255, 0.08);
+    font-size: 10px;
+    color: var(--foreground-dim);
+    background: var(--surface-sunken);
     padding: 2px 6px;
     border-radius: 4px;
-    font-family: monospace;
+    border: 1px solid var(--line);
+    font-family: var(--font-mono);
+    font-weight: 600;
     letter-spacing: 0.5px;
 }

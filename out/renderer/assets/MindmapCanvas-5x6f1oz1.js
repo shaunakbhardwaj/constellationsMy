@@ -1,4 +1,4 @@
-import { r as reactExports, j as jsxRuntimeExports } from "./index-BlMnu0rb.js";
+import { r as reactExports, j as jsxRuntimeExports } from "./index-CmQh7K86.js";
 var noop = { value: () => {
 } };
 function dispatch() {
@@ -2475,16 +2475,20 @@ function zoom() {
   };
   return zoom2;
 }
-const container = "_container_1qoot_1";
-const svg = "_svg_1qoot_11";
-const link = "_link_1qoot_21";
-const node = "_node_1qoot_25";
-const nodeRect = "_nodeRect_1qoot_34";
-const selected = "_selected_1qoot_44";
-const expanding = "_expanding_1qoot_54";
-const spinnerCircle = "_spinnerCircle_1qoot_71";
-const nodeText = "_nodeText_1qoot_86";
-const inlineInput = "_inlineInput_1qoot_92";
+const container = "_container_mo0kc_1";
+const svg = "_svg_mo0kc_21";
+const link = "_link_mo0kc_32";
+const node = "_node_mo0kc_36";
+const nodeRect = "_nodeRect_mo0kc_43";
+const selected = "_selected_mo0kc_54";
+const expanding = "_expanding_mo0kc_58";
+const spinnerCircle = "_spinnerCircle_mo0kc_73";
+const nodeText = "_nodeText_mo0kc_88";
+const inlineInput = "_inlineInput_mo0kc_94";
+const hoverActions = "_hoverActions_mo0kc_99";
+const hoverActionButton = "_hoverActionButton_mo0kc_112";
+const minimapContainer = "_minimapContainer_mo0kc_138";
+const minimap = "_minimap_mo0kc_138";
 const styles = {
   container,
   svg,
@@ -2495,13 +2499,30 @@ const styles = {
   expanding,
   spinnerCircle,
   nodeText,
-  inlineInput
+  inlineInput,
+  hoverActions,
+  hoverActionButton,
+  minimapContainer,
+  minimap
 };
 const MAX_PER_SIDE = 3;
 const HORIZONTAL_GAP = 70;
 const VERTICAL_GAP = 24;
-const DEFAULT_PALETTE = ["#f97316", "#f43f5e", "#8b5cf6", "#0ea5e9", "#14b8a6", "#84cc16", "#eab308"];
-const ROOT_COLOR = "#0f172a";
+const DEFAULT_PALETTE = [
+  "#b79a78",
+  "#8d8172",
+  "#6f7b6b",
+  "#a87868",
+  "#7b8790",
+  "#9c8d66",
+  "#b2aa98"
+];
+const ROOT_COLOR = "#24201b";
+const NODE_TEXT_DARK = "#25211c";
+const NODE_TEXT_LIGHT = "#f0eadf";
+const NODE_STROKE_LIGHT = "#f5eee3";
+const NODE_STROKE_DARK = "#1d1915";
+const EXPORT_BACKGROUND = "#1b1713";
 const NODE_STYLES = {
   root: {
     maxWidth: 320,
@@ -2520,6 +2541,16 @@ const NODE_STYLES = {
     lineHeight: 16,
     paddingX: 14,
     paddingY: 8,
+    charWidth: 6.5,
+    fontWeight: 500
+  },
+  detail: {
+    maxWidth: 360,
+    minWidth: 220,
+    fontSize: 12,
+    lineHeight: 17,
+    paddingX: 18,
+    paddingY: 14,
     charWidth: 6.5,
     fontWeight: 500
   }
@@ -2556,13 +2587,20 @@ const wrapText = (text, maxChars) => {
   pushCurrent();
   return lines.length ? lines : [""];
 };
-const buildNodeMetrics = (text, depth) => {
-  const style = depth === 0 ? NODE_STYLES.root : NODE_STYLES.branch;
-  const maxChars = Math.max(8, Math.floor((style.maxWidth - style.paddingX * 2) / style.charWidth));
+const getNodeDetailText = (node2) => node2.description || node2.notes || node2.title;
+const buildNodeMetrics = (text, depth, isDetail = false) => {
+  const style = isDetail ? NODE_STYLES.detail : depth === 0 ? NODE_STYLES.root : NODE_STYLES.branch;
+  const maxChars = Math.max(
+    8,
+    Math.floor((style.maxWidth - style.paddingX * 2) / style.charWidth)
+  );
   const lines = wrapText(text, maxChars);
   const maxLineLength = Math.max(...lines.map((line) => line.length), 0);
   const textWidth = maxLineLength * style.charWidth;
-  const width = Math.max(style.minWidth, Math.min(style.maxWidth, textWidth + style.paddingX * 2));
+  const width = Math.max(
+    style.minWidth,
+    Math.min(style.maxWidth, textWidth + style.paddingX * 2)
+  );
   const height = lines.length * style.lineHeight + style.paddingY * 2;
   return {
     width,
@@ -2583,8 +2621,11 @@ function MindmapCanvas({
   selectionMode = false,
   editingNodeId,
   expandingNodeId,
+  detailNodeId,
   focusedNodeId: _focusedNodeId,
   onNodeClick,
+  onViewNodeDetails,
+  onOpenAIExpand,
   onNodeTitleChange,
   onEditComplete,
   onToggleCollapse,
@@ -2595,6 +2636,7 @@ function MindmapCanvas({
   const containerRef = reactExports.useRef(null);
   const minimapRef = reactExports.useRef(null);
   const [editValue, setEditValue] = reactExports.useState("");
+  const [hoverMenu, setHoverMenu] = reactExports.useState(null);
   const zoomRef = reactExports.useRef(null);
   const gRef = reactExports.useRef(null);
   const zoomTransformRef = reactExports.useRef(null);
@@ -2602,6 +2644,7 @@ function MindmapCanvas({
   const hasAnimatedRef = reactExports.useRef(false);
   const layoutNodesRef = reactExports.useRef([]);
   const lastViewKeyRef = reactExports.useRef(void 0);
+  const hoverHideTimerRef = reactExports.useRef(null);
   reactExports.useEffect(() => {
     if (viewKey === void 0) return;
     if (lastViewKeyRef.current === viewKey) return;
@@ -2610,148 +2653,173 @@ function MindmapCanvas({
     zoomTransformRef.current = null;
     hasAnimatedRef.current = animatedViews.has(viewKey);
   }, [viewKey]);
-  const createBilateralLayout = reactExports.useCallback((root2, centerX, centerY, metricsById) => {
-    const nodes = [];
-    const getMetrics = (node2, depth) => {
-      return metricsById.get(node2.id) ?? buildNodeMetrics(node2.title, depth);
+  reactExports.useEffect(() => {
+    return () => {
+      if (hoverHideTimerRef.current) {
+        window.clearTimeout(hoverHideTimerRef.current);
+      }
     };
-    const getSubtreeHeight = (node2, depth) => {
-      const metrics = getMetrics(node2, depth);
-      if (node2.collapsed || node2.children.length === 0) return metrics.height;
-      const childHeights = node2.children.map((child) => getSubtreeHeight(child, depth + 1));
-      const totalChildHeight = childHeights.reduce((sum, h) => sum + h, 0) + Math.max(0, childHeights.length - 1) * VERTICAL_GAP;
-      return Math.max(metrics.height, totalChildHeight);
-    };
-    const layoutNode = (node2, x, y, depth, isLeft, mainBranchIndex, branchColor, parent) => {
-      const metrics = getMetrics(node2, depth);
-      const layoutNode_ = {
-        data: node2,
-        x,
-        y,
-        depth,
-        branchColor: node2.branchColor || branchColor,
-        isLeft,
-        mainBranchIndex,
-        parent,
-        children: [],
-        width: metrics.width,
-        height: metrics.height,
-        lines: metrics.lines,
-        lineHeight: metrics.lineHeight,
-        fontSize: metrics.fontSize,
-        fontWeight: metrics.fontWeight,
-        paddingX: metrics.paddingX,
-        paddingY: metrics.paddingY
+  }, []);
+  const createBilateralLayout = reactExports.useCallback(
+    (root2, centerX, centerY, metricsById) => {
+      const nodes = [];
+      const getMetrics = (node2, depth) => {
+        const isDetail = node2.id === detailNodeId;
+        return metricsById.get(node2.id) ?? buildNodeMetrics(
+          isDetail ? getNodeDetailText(node2) : node2.title,
+          depth,
+          isDetail
+        );
       };
-      nodes.push(layoutNode_);
-      if (node2.collapsed) return layoutNode_;
-      const childrenCount = node2.children.length;
-      if (childrenCount === 0) return layoutNode_;
-      const childHeights = node2.children.map((child) => getSubtreeHeight(child, depth + 1));
-      const totalHeight = childHeights.reduce((a, b) => a + b, 0) + Math.max(0, childHeights.length - 1) * VERTICAL_GAP;
-      let currentY = y - totalHeight / 2;
-      node2.children.forEach((child, i) => {
-        const childHeight = childHeights[i];
-        const childY = currentY + childHeight / 2;
-        const childMetrics = getMetrics(child, depth + 1);
-        const childX = isLeft ? x - (metrics.width / 2 + childMetrics.width / 2 + HORIZONTAL_GAP) : x + (metrics.width / 2 + childMetrics.width / 2 + HORIZONTAL_GAP);
-        const childLayout = layoutNode(
-          child,
-          childX,
-          childY,
-          depth + 1,
+      const getSubtreeHeight = (node2, depth) => {
+        const metrics = getMetrics(node2, depth);
+        if (node2.collapsed || node2.children.length === 0) return metrics.height;
+        const childHeights = node2.children.map(
+          (child) => getSubtreeHeight(child, depth + 1)
+        );
+        const totalChildHeight = childHeights.reduce((sum, h) => sum + h, 0) + Math.max(0, childHeights.length - 1) * VERTICAL_GAP;
+        return Math.max(metrics.height, totalChildHeight);
+      };
+      const layoutNode = (node2, x, y, depth, isLeft, mainBranchIndex, branchColor, parent) => {
+        const metrics = getMetrics(node2, depth);
+        const layoutNode_ = {
+          data: node2,
+          x,
+          y,
+          depth,
+          branchColor: node2.branchColor || branchColor,
           isLeft,
           mainBranchIndex,
-          layoutNode_.branchColor,
-          layoutNode_
+          parent,
+          children: [],
+          width: metrics.width,
+          height: metrics.height,
+          lines: metrics.lines,
+          lineHeight: metrics.lineHeight,
+          fontSize: metrics.fontSize,
+          fontWeight: metrics.fontWeight,
+          paddingX: metrics.paddingX,
+          paddingY: metrics.paddingY,
+          isDetail: node2.id === detailNodeId
+        };
+        nodes.push(layoutNode_);
+        if (node2.collapsed) return layoutNode_;
+        const childrenCount = node2.children.length;
+        if (childrenCount === 0) return layoutNode_;
+        const childHeights = node2.children.map(
+          (child) => getSubtreeHeight(child, depth + 1)
         );
-        layoutNode_.children.push(childLayout);
-        currentY += childHeight + VERTICAL_GAP;
-      });
-      return layoutNode_;
-    };
-    const rootMetrics = getMetrics(root2, 0);
-    const rootLayout = {
-      data: root2,
-      x: centerX,
-      y: centerY,
-      depth: 0,
-      branchColor: ROOT_COLOR,
-      isLeft: false,
-      mainBranchIndex: -1,
-      children: [],
-      width: rootMetrics.width,
-      height: rootMetrics.height,
-      lines: rootMetrics.lines,
-      lineHeight: rootMetrics.lineHeight,
-      fontSize: rootMetrics.fontSize,
-      fontWeight: rootMetrics.fontWeight,
-      paddingX: rootMetrics.paddingX,
-      paddingY: rootMetrics.paddingY
-    };
-    nodes.push(rootLayout);
-    if (!root2.collapsed) {
-      const mainChildren = root2.children;
-      let leftCount = 0;
-      let rightCount = 0;
-      const leftChildren = [];
-      const rightChildren = [];
-      mainChildren.forEach((child, idx) => {
-        if (rightCount < MAX_PER_SIDE && (idx % 2 === 0 || leftCount >= MAX_PER_SIDE)) {
-          rightChildren.push({ node: child, idx });
-          rightCount++;
-        } else {
-          leftChildren.push({ node: child, idx });
-          leftCount++;
-        }
-      });
-      const rightHeights = rightChildren.map((child) => getSubtreeHeight(child.node, 1));
-      const rightTotalHeight = rightHeights.reduce((a, b) => a + b, 0) + Math.max(0, rightHeights.length - 1) * VERTICAL_GAP;
-      let rightY = centerY - rightTotalHeight / 2;
-      rightChildren.forEach((item, i) => {
-        const childY = rightY + rightHeights[i] / 2;
-        const childMetrics = getMetrics(item.node, 1);
-        const childX = centerX + (rootMetrics.width / 2 + childMetrics.width / 2 + HORIZONTAL_GAP);
-        const palette = DEFAULT_PALETTE;
-        const color2 = item.node.branchColor || palette[item.idx % palette.length];
-        const childLayout = layoutNode(
-          item.node,
-          childX,
-          childY,
-          1,
-          false,
-          item.idx,
-          color2,
-          rootLayout
+        const totalHeight = childHeights.reduce((a, b) => a + b, 0) + Math.max(0, childHeights.length - 1) * VERTICAL_GAP;
+        let currentY = y - totalHeight / 2;
+        node2.children.forEach((child, i) => {
+          const childHeight = childHeights[i];
+          const childY = currentY + childHeight / 2;
+          const childMetrics = getMetrics(child, depth + 1);
+          const childX = isLeft ? x - (metrics.width / 2 + childMetrics.width / 2 + HORIZONTAL_GAP) : x + (metrics.width / 2 + childMetrics.width / 2 + HORIZONTAL_GAP);
+          const childLayout = layoutNode(
+            child,
+            childX,
+            childY,
+            depth + 1,
+            isLeft,
+            mainBranchIndex,
+            layoutNode_.branchColor,
+            layoutNode_
+          );
+          layoutNode_.children.push(childLayout);
+          currentY += childHeight + VERTICAL_GAP;
+        });
+        return layoutNode_;
+      };
+      const rootMetrics = getMetrics(root2, 0);
+      const rootLayout = {
+        data: root2,
+        x: centerX,
+        y: centerY,
+        depth: 0,
+        branchColor: ROOT_COLOR,
+        isLeft: false,
+        mainBranchIndex: -1,
+        children: [],
+        width: rootMetrics.width,
+        height: rootMetrics.height,
+        lines: rootMetrics.lines,
+        lineHeight: rootMetrics.lineHeight,
+        fontSize: rootMetrics.fontSize,
+        fontWeight: rootMetrics.fontWeight,
+        paddingX: rootMetrics.paddingX,
+        paddingY: rootMetrics.paddingY,
+        isDetail: root2.id === detailNodeId
+      };
+      nodes.push(rootLayout);
+      if (!root2.collapsed) {
+        const mainChildren = root2.children;
+        let leftCount = 0;
+        let rightCount = 0;
+        const leftChildren = [];
+        const rightChildren = [];
+        mainChildren.forEach((child, idx) => {
+          if (rightCount < MAX_PER_SIDE && (idx % 2 === 0 || leftCount >= MAX_PER_SIDE)) {
+            rightChildren.push({ node: child, idx });
+            rightCount++;
+          } else {
+            leftChildren.push({ node: child, idx });
+            leftCount++;
+          }
+        });
+        const rightHeights = rightChildren.map(
+          (child) => getSubtreeHeight(child.node, 1)
         );
-        rootLayout.children.push(childLayout);
-        rightY += rightHeights[i] + VERTICAL_GAP;
-      });
-      const leftHeights = leftChildren.map((child) => getSubtreeHeight(child.node, 1));
-      const leftTotalHeight = leftHeights.reduce((a, b) => a + b, 0) + Math.max(0, leftHeights.length - 1) * VERTICAL_GAP;
-      let leftY = centerY - leftTotalHeight / 2;
-      leftChildren.forEach((item, i) => {
-        const childY = leftY + leftHeights[i] / 2;
-        const childMetrics = getMetrics(item.node, 1);
-        const childX = centerX - (rootMetrics.width / 2 + childMetrics.width / 2 + HORIZONTAL_GAP);
-        const palette = DEFAULT_PALETTE;
-        const color2 = item.node.branchColor || palette[item.idx % palette.length];
-        const childLayout = layoutNode(
-          item.node,
-          childX,
-          childY,
-          1,
-          true,
-          item.idx,
-          color2,
-          rootLayout
+        const rightTotalHeight = rightHeights.reduce((a, b) => a + b, 0) + Math.max(0, rightHeights.length - 1) * VERTICAL_GAP;
+        let rightY = centerY - rightTotalHeight / 2;
+        rightChildren.forEach((item, i) => {
+          const childY = rightY + rightHeights[i] / 2;
+          const childMetrics = getMetrics(item.node, 1);
+          const childX = centerX + (rootMetrics.width / 2 + childMetrics.width / 2 + HORIZONTAL_GAP);
+          const palette = DEFAULT_PALETTE;
+          const color2 = item.node.branchColor || palette[item.idx % palette.length];
+          const childLayout = layoutNode(
+            item.node,
+            childX,
+            childY,
+            1,
+            false,
+            item.idx,
+            color2,
+            rootLayout
+          );
+          rootLayout.children.push(childLayout);
+          rightY += rightHeights[i] + VERTICAL_GAP;
+        });
+        const leftHeights = leftChildren.map(
+          (child) => getSubtreeHeight(child.node, 1)
         );
-        rootLayout.children.push(childLayout);
-        leftY += leftHeights[i] + VERTICAL_GAP;
-      });
-    }
-    return nodes;
-  }, []);
+        const leftTotalHeight = leftHeights.reduce((a, b) => a + b, 0) + Math.max(0, leftHeights.length - 1) * VERTICAL_GAP;
+        let leftY = centerY - leftTotalHeight / 2;
+        leftChildren.forEach((item, i) => {
+          const childY = leftY + leftHeights[i] / 2;
+          const childMetrics = getMetrics(item.node, 1);
+          const childX = centerX - (rootMetrics.width / 2 + childMetrics.width / 2 + HORIZONTAL_GAP);
+          const palette = DEFAULT_PALETTE;
+          const color2 = item.node.branchColor || palette[item.idx % palette.length];
+          const childLayout = layoutNode(
+            item.node,
+            childX,
+            childY,
+            1,
+            true,
+            item.idx,
+            color2,
+            rootLayout
+          );
+          rootLayout.children.push(childLayout);
+          leftY += leftHeights[i] + VERTICAL_GAP;
+        });
+      }
+      return nodes;
+    },
+    [detailNodeId]
+  );
   const renderMindmap = reactExports.useCallback(() => {
     if (!svgRef.current || !containerRef.current || !data) return;
     select(svgRef.current).selectAll("*").remove();
@@ -2776,7 +2844,15 @@ function MindmapCanvas({
     svg2.call(zoom$1);
     const metricsById = /* @__PURE__ */ new Map();
     const buildMetrics = (node2, depth) => {
-      metricsById.set(node2.id, buildNodeMetrics(node2.title, depth));
+      const isDetail = node2.id === detailNodeId;
+      metricsById.set(
+        node2.id,
+        buildNodeMetrics(
+          isDetail ? getNodeDetailText(node2) : node2.title,
+          depth,
+          isDetail
+        )
+      );
       node2.children.forEach((child) => buildMetrics(child, depth + 1));
     };
     buildMetrics(data, 0);
@@ -2814,7 +2890,8 @@ function MindmapCanvas({
     }
     const nodeGroups = g.selectAll(".node").data(nodes).enter().append("g").attr("class", (d) => {
       let classes = styles.node;
-      if (selectedNodeIds.includes(d.data.id) || selectedNodeId === d.data.id) classes += ` ${styles.selected}`;
+      if (selectedNodeIds.includes(d.data.id) || selectedNodeId === d.data.id)
+        classes += ` ${styles.selected}`;
       if (expandingNodeId === d.data.id) classes += ` ${styles.expanding}`;
       return classes;
     }).attr("transform", (d) => `translate(${d.x},${d.y})`).style("cursor", "pointer").style("opacity", (d) => {
@@ -2839,6 +2916,26 @@ function MindmapCanvas({
           }, 150);
         }
       }
+    }).on("mouseenter", (event, d) => {
+      if (hoverHideTimerRef.current) {
+        window.clearTimeout(hoverHideTimerRef.current);
+        hoverHideTimerRef.current = null;
+      }
+      setHoverMenu({
+        node: d.data,
+        position: {
+          x: event.clientX,
+          y: event.clientY
+        }
+      });
+    }).on("mouseleave", () => {
+      if (hoverHideTimerRef.current) {
+        window.clearTimeout(hoverHideTimerRef.current);
+      }
+      hoverHideTimerRef.current = window.setTimeout(
+        () => setHoverMenu(null),
+        160
+      );
     }).on("dblclick", (event, d) => {
       event.stopPropagation();
       if (onNodeDoubleClick) {
@@ -2855,20 +2952,20 @@ function MindmapCanvas({
       const isCollapsed = d.data.collapsed;
       const rectWidth = d.width;
       const rectHeight = d.height;
-      const radius = rectHeight / 2;
+      const radius = d.isDetail ? 8 : rectHeight / 2;
       const rect = node2.append("rect").attr("x", -rectWidth / 2).attr("y", -rectHeight / 2).attr("width", rectWidth).attr("height", rectHeight).attr("rx", radius).attr("ry", radius).attr("fill", isRoot ? ROOT_COLOR : d.branchColor).attr("opacity", isRoot ? 1 : 0.9).attr("class", styles.nodeRect);
       if (isSelected) {
-        rect.attr("filter", "url(#selectedGlow)").attr("stroke", "#fff").attr("stroke-width", 2);
+        rect.attr("filter", "url(#selectedGlow)").attr("stroke", NODE_STROKE_LIGHT).attr("stroke-width", 2);
       }
       if (isCollapsed && hasChildren) {
         node2.append("rect").attr("x", -rectWidth / 2 - 2).attr("y", -rectHeight / 2 - 2).attr("width", rectWidth + 4).attr("height", rectHeight + 4).attr("rx", radius + 2).attr("ry", radius + 2).attr("fill", "none").attr("stroke", d.branchColor).attr("stroke-width", 2).attr("stroke-dasharray", "4 2").attr("opacity", 0.6);
         const hiddenCount = countDescendants(d.data);
-        node2.append("circle").attr("cx", rectWidth / 2 + 4).attr("cy", 0).attr("r", 10).attr("fill", d.branchColor).attr("stroke", "#1a1a2e").attr("stroke-width", 1);
-        node2.append("text").attr("x", rectWidth / 2 + 4).attr("y", 4).attr("text-anchor", "middle").attr("fill", "#1a1a2e").attr("font-size", "9px").attr("font-weight", "bold").text(hiddenCount);
+        node2.append("circle").attr("cx", rectWidth / 2 + 4).attr("cy", 0).attr("r", 10).attr("fill", d.branchColor).attr("stroke", NODE_STROKE_DARK).attr("stroke-width", 1);
+        node2.append("text").attr("x", rectWidth / 2 + 4).attr("y", 4).attr("text-anchor", "middle").attr("fill", NODE_TEXT_DARK).attr("font-size", "9px").attr("font-weight", "bold").text(hiddenCount);
       }
       if (hasChildren && !isRoot) {
         const toggleX = d.isLeft ? -rectWidth / 2 - 14 : rectWidth / 2 + 14;
-        node2.append("circle").attr("class", styles.collapseToggle).attr("cx", toggleX).attr("cy", 0).attr("r", 10).attr("fill", "rgba(255,255,255,0.15)").attr("stroke", d.branchColor).attr("stroke-width", 1.5).style("cursor", "pointer").on("click", (event) => {
+        node2.append("circle").attr("class", styles.collapseToggle).attr("cx", toggleX).attr("cy", 0).attr("r", 10).attr("fill", "rgba(245, 238, 227, 0.16)").attr("stroke", d.branchColor).attr("stroke-width", 1.5).style("cursor", "pointer").on("click", (event) => {
           event.stopPropagation();
           if (onToggleCollapse) {
             onToggleCollapse(d.data.id);
@@ -2877,16 +2974,16 @@ function MindmapCanvas({
         node2.append("text").attr("x", toggleX).attr("y", 4).attr("text-anchor", "middle").attr("fill", d.branchColor).attr("font-size", "14px").attr("font-weight", "bold").attr("pointer-events", "none").text(isCollapsed ? "+" : "−");
       }
       if (isExpanding) {
-        node2.append("circle").attr("r", rectHeight / 2 + 4).attr("fill", "none").attr("stroke", "#fff").attr("stroke-width", 2).attr("stroke-dasharray", "8 8").attr("class", styles.spinnerCircle);
+        node2.append("circle").attr("r", rectHeight / 2 + 4).attr("fill", "none").attr("stroke", NODE_STROKE_LIGHT).attr("stroke-width", 2).attr("stroke-dasharray", "8 8").attr("class", styles.spinnerCircle);
       }
       if (d.data.notes) {
-        node2.append("circle").attr("cx", rectWidth / 2 - 6).attr("cy", -rectHeight / 2 + 6).attr("r", 6).attr("fill", ROOT_COLOR).attr("stroke", "#fff").attr("stroke-width", 1.5);
-        node2.append("text").attr("x", rectWidth / 2 - 6).attr("y", -rectHeight / 2 + 10).attr("text-anchor", "middle").attr("fill", "#fff").attr("font-size", "8px").attr("font-weight", "bold").text("📝");
+        node2.append("circle").attr("cx", rectWidth / 2 - 6).attr("cy", -rectHeight / 2 + 6).attr("r", 6).attr("fill", ROOT_COLOR).attr("stroke", NODE_STROKE_LIGHT).attr("stroke-width", 1.5);
+        node2.append("text").attr("x", rectWidth / 2 - 6).attr("y", -rectHeight / 2 + 10).attr("text-anchor", "middle").attr("fill", NODE_TEXT_LIGHT).attr("font-size", "8px").attr("font-weight", "bold").text("N");
       }
     });
     nodeGroups.filter((d) => editingNodeId !== d.data.id).each(function(d) {
       const node2 = select(this);
-      const text = node2.append("text").attr("class", styles.nodeText).attr("text-anchor", "middle").attr("dominant-baseline", "middle").attr("fill", d.depth === 0 ? "#fff" : "#1a1a2e").attr("font-size", `${d.fontSize}px`).attr("font-weight", d.fontWeight);
+      const text = node2.append("text").attr("class", styles.nodeText).attr("text-anchor", "middle").attr("dominant-baseline", "middle").attr("fill", d.depth === 0 ? NODE_TEXT_LIGHT : NODE_TEXT_DARK).attr("font-size", `${d.fontSize}px`).attr("font-weight", d.fontWeight);
       const lineCount = d.lines.length;
       const lineOffset = (lineCount - 1) * d.lineHeight / 2;
       d.lines.forEach((line, index) => {
@@ -2902,7 +2999,7 @@ function MindmapCanvas({
         const rectWidth = Math.max(100, metrics.width);
         const rectHeight = metrics.height;
         const foreignObject = g.append("foreignObject").attr("x", editingNode.x - rectWidth / 2).attr("y", editingNode.y - rectHeight / 2).attr("width", rectWidth).attr("height", rectHeight);
-        foreignObject.append("xhtml:input").attr("type", "text").attr("value", editValue || editingNode.data.title).attr("class", styles.inlineInput).style("width", "100%").style("height", "100%").style("padding", "0 12px").style("background", isRoot ? ROOT_COLOR : editingNode.branchColor).style("border", "2px solid #fff").style("border-radius", `${rectHeight / 2}px`).style("color", isRoot ? "#fff" : "#1a1a2e").style("font-size", `${metrics.fontSize}px`).style("font-weight", `${metrics.fontWeight}`).style("line-height", `${metrics.lineHeight}px`).style("text-align", "center").style("outline", "none").on("input", function() {
+        foreignObject.append("xhtml:input").attr("type", "text").attr("value", editValue || editingNode.data.title).attr("class", styles.inlineInput).style("width", "100%").style("height", "100%").style("padding", "0 12px").style("background", isRoot ? ROOT_COLOR : editingNode.branchColor).style("border", `2px solid ${NODE_STROKE_LIGHT}`).style("border-radius", `${rectHeight / 2}px`).style("color", isRoot ? NODE_TEXT_LIGHT : NODE_TEXT_DARK).style("font-size", `${metrics.fontSize}px`).style("font-weight", `${metrics.fontWeight}`).style("line-height", `${metrics.lineHeight}px`).style("text-align", "center").style("outline", "none").on("input", function() {
           setEditValue(this.value);
         }).on("keydown", function(event) {
           if (event.key === "Enter") {
@@ -2950,11 +3047,7 @@ function MindmapCanvas({
       } else {
         const fullWidth = bounds.width + 120;
         const fullHeight = bounds.height + 120;
-        const fittedScale = Math.min(
-          width / fullWidth,
-          height / fullHeight,
-          1
-        ) * 0.9;
+        const fittedScale = Math.min(width / fullWidth, height / fullHeight, 1) * 0.9;
         const translateX = width / 2 - (bounds.x + bounds.width / 2) * fittedScale;
         const translateY = height / 2 - (bounds.y + bounds.height / 2) * fittedScale;
         svg2.call(
@@ -2996,11 +3089,7 @@ function MindmapCanvas({
       const maxY = Math.max(...branchNodes.map((n) => n.y + n.height / 2)) + 60;
       const branchWidth = maxX - minX;
       const branchHeight = maxY - minY;
-      const scale = Math.min(
-        width / branchWidth,
-        height / branchHeight,
-        1.5
-      ) * 0.9;
+      const scale = Math.min(width / branchWidth, height / branchHeight, 1.5) * 0.9;
       const centerBranchX = (minX + maxX) / 2;
       const centerBranchY = (minY + maxY) / 2;
       const translateX = width / 2 - centerBranchX * scale;
@@ -3023,7 +3112,10 @@ function MindmapCanvas({
       const minimapScale = Math.min(scaleX, scaleY);
       const offsetX = -mainBounds.x * minimapScale + (minimapWidth - mainBounds.width * minimapScale) / 2;
       const offsetY = -mainBounds.y * minimapScale + (minimapHeight - mainBounds.height * minimapScale) / 2;
-      const minimapG = minimapSvg.append("g").attr("transform", `translate(${offsetX},${offsetY}) scale(${minimapScale})`);
+      const minimapG = minimapSvg.append("g").attr(
+        "transform",
+        `translate(${offsetX},${offsetY}) scale(${minimapScale})`
+      );
       nodes.forEach((node2) => {
         minimapG.append("circle").attr("cx", node2.x).attr("cy", node2.y).attr("r", node2.depth === 0 ? 8 : 4).attr("fill", node2.branchColor).attr("opacity", 0.8);
       });
@@ -3034,7 +3126,23 @@ function MindmapCanvas({
       const viewportHeight = height / transform$1.k;
       minimapG.append("rect").attr("x", viewportX).attr("y", viewportY).attr("width", viewportWidth).attr("height", viewportHeight).attr("fill", "none").attr("stroke", ROOT_COLOR).attr("stroke-width", 2 / minimapScale);
     }
-  }, [data, editingNodeId, editValue, onNodeClick, onNodeTitleChange, onEditComplete, onToggleCollapse, onNodeDoubleClick, isNodeInFocus, createBilateralLayout, selectedNodeId, selectedNodeIds, selectionMode, expandingNodeId]);
+  }, [
+    data,
+    detailNodeId,
+    editingNodeId,
+    editValue,
+    onNodeClick,
+    onNodeTitleChange,
+    onEditComplete,
+    onToggleCollapse,
+    onNodeDoubleClick,
+    isNodeInFocus,
+    createBilateralLayout,
+    selectedNodeId,
+    selectedNodeIds,
+    selectionMode,
+    expandingNodeId
+  ]);
   reactExports.useEffect(() => {
     if (!gRef.current || !svgRef.current) return;
     gRef.current.selectAll("." + styles.node).classed(styles.selected, (d) => {
@@ -3046,13 +3154,15 @@ function MindmapCanvas({
       return selectedNodeIds.includes(node2.data.id) || selectedNodeId === node2.data.id ? "url(#selectedGlow)" : null;
     }).attr("stroke", (d) => {
       const node2 = d;
-      return selectedNodeIds.includes(node2.data.id) || selectedNodeId === node2.data.id ? "#fff" : null;
+      return selectedNodeIds.includes(node2.data.id) || selectedNodeId === node2.data.id ? NODE_STROKE_LIGHT : null;
     }).attr("stroke-width", (d) => {
       const node2 = d;
       return selectedNodeIds.includes(node2.data.id) || selectedNodeId === node2.data.id ? 2 : 0;
     });
     if (selectedNodeId && zoomRef.current && containerRef.current && svgRef.current) {
-      const selectedLayout = layoutNodesRef.current.find((n) => n.data.id === selectedNodeId);
+      const selectedLayout = layoutNodesRef.current.find(
+        (n) => n.data.id === selectedNodeId
+      );
       if (selectedLayout) {
         const container2 = containerRef.current;
         const width = container2.clientWidth || 1200;
@@ -3122,7 +3232,9 @@ function MindmapCanvas({
     if (!svgRef.current) return;
     const svg2 = svgRef.current;
     const svgData = new XMLSerializer().serializeToString(svg2);
-    const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+    const svgBlob = new Blob([svgData], {
+      type: "image/svg+xml;charset=utf-8"
+    });
     const url = URL.createObjectURL(svgBlob);
     const img = new Image();
     img.onload = () => {
@@ -3131,7 +3243,7 @@ function MindmapCanvas({
       canvas.height = svg2.clientHeight * 2;
       const ctx = canvas.getContext("2d");
       if (ctx) {
-        ctx.fillStyle = "#0a0a0f";
+        ctx.fillStyle = EXPORT_BACKGROUND;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.scale(2, 2);
         ctx.drawImage(img, 0, 0);
@@ -3150,9 +3262,70 @@ function MindmapCanvas({
     window.addEventListener("export-mindmap", handleExport);
     return () => window.removeEventListener("export-mindmap", handleExport);
   }, [exportToPNG]);
+  const keepHoverMenuOpen = () => {
+    if (hoverHideTimerRef.current) {
+      window.clearTimeout(hoverHideTimerRef.current);
+      hoverHideTimerRef.current = null;
+    }
+  };
+  const scheduleHoverMenuClose = () => {
+    if (hoverHideTimerRef.current) {
+      window.clearTimeout(hoverHideTimerRef.current);
+    }
+    hoverHideTimerRef.current = window.setTimeout(
+      () => setHoverMenu(null),
+      160
+    );
+  };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { ref: containerRef, className: styles.container, children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { ref: svgRef, className: styles.svg }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.minimapContainer, children: /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { ref: minimapRef, className: styles.minimap, width: "150", height: "100" }) })
+    hoverMenu && (onViewNodeDetails || onOpenAIExpand) && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: styles.hoverActions,
+        style: {
+          left: hoverMenu.position.x + 12,
+          top: hoverMenu.position.y - 8
+        },
+        onPointerEnter: keepHoverMenuOpen,
+        onPointerLeave: scheduleHoverMenuClose,
+        children: [
+          onViewNodeDetails && /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              className: styles.hoverActionButton,
+              onClick: () => {
+                onViewNodeDetails(hoverMenu.node);
+                setHoverMenu(null);
+              },
+              type: "button",
+              children: detailNodeId === hoverMenu.node.id ? "Hide Detail" : "View Detail"
+            }
+          ),
+          onOpenAIExpand && /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              className: styles.hoverActionButton,
+              onClick: () => {
+                onOpenAIExpand(hoverMenu.node, hoverMenu.position);
+                setHoverMenu(null);
+              },
+              type: "button",
+              children: "Expand"
+            }
+          )
+        ]
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: styles.minimapContainer, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "svg",
+      {
+        ref: minimapRef,
+        className: styles.minimap,
+        width: "150",
+        height: "100"
+      }
+    ) })
   ] });
 }
 export {
